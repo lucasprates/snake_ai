@@ -50,6 +50,51 @@ test("rogue snake spawns without using occupied cells", () => {
   );
 });
 
+test("rogue spawn always starts from a corner and emerges from wall", () => {
+  const rogue = spawnRogueSnake(1, 6, 6, new Set(), () => 0);
+  const head = rogue.snake[0];
+  const isCornerHead =
+    (head.x === 0 || head.x === 5) &&
+    (head.y === 0 || head.y === 5);
+  const hasOutsideSegment = rogue.snake.some(
+    (part) => part.x < 0 || part.y < 0 || part.x >= 6 || part.y >= 6
+  );
+
+  assert.ok(isCornerHead);
+  assert.equal(rogue.emergingTicks, 2);
+  assert.equal(hasOutsideSegment, true);
+});
+
+test("rogue keeps spawn direction while emerging, then can turn", () => {
+  const initial = {
+    id: 1,
+    active: true,
+    direction: "RIGHT",
+    emergingTicks: 2,
+    snake: [
+      { x: 0, y: 0 },
+      { x: -1, y: 0 },
+      { x: -2, y: 0 }
+    ]
+  };
+
+  const first = moveRogueSnake(initial, { x: 0, y: 5 }, 6, 6, new Set(), () => 0);
+  assert.ok(first);
+  assert.equal(first.rogue.direction, "RIGHT");
+  assert.equal(first.rogue.emergingTicks, 1);
+  assert.deepEqual(first.rogue.snake[0], { x: 1, y: 0 });
+
+  const second = moveRogueSnake(first.rogue, { x: 0, y: 5 }, 6, 6, new Set(), () => 0);
+  assert.ok(second);
+  assert.equal(second.rogue.direction, "RIGHT");
+  assert.equal(second.rogue.emergingTicks, 0);
+  assert.deepEqual(second.rogue.snake[0], { x: 2, y: 0 });
+
+  const third = moveRogueSnake(second.rogue, { x: 2, y: 5 }, 6, 6, new Set(), () => 0);
+  assert.ok(third);
+  assert.equal(third.rogue.direction, "DOWN");
+});
+
 test("rogue snake moves toward food when path is clear", () => {
   const rogue = {
     id: 1,

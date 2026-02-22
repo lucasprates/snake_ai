@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.2`
+Current version: `0.2.1`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 
@@ -11,6 +11,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 - Snake growth and score updates when food is eaten
 - Pre-game setup to choose `0-5` AI rogue snakes
 - AI snakes that chase food, eat fruit, grow, die, and respawn after random delays
+- AI snakes spawn from random corners and emerge from the wall over initial ticks
 - Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
 - Game-over modal includes AI count selector synced with the main setup selector
 - Game over on wall collision or self collision
@@ -18,6 +19,10 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 - Restart and pause/resume controls
 - Keyboard controls (`Arrow` keys + `WASD`) and on-screen touch controls
 - Basic game-over modal with restart action
+
+## Patch Notes
+
+- `v0.2.1`: fixed rogue spawn rendering edge case where emerging off-board segments could appear on the opposite side of the grid.
 
 ## Tech Stack
 

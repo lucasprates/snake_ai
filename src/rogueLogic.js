@@ -7,6 +7,7 @@ import {
 export const MAX_ROGUE_SNAKES = 5;
 
 const DIRECTION_ORDER = ["UP", "DOWN", "LEFT", "RIGHT"];
+const EMERGING_SEGMENTS = 2;
 const OPPOSITE_DIRECTIONS = {
   UP: "DOWN",
   DOWN: "UP",
@@ -60,6 +61,27 @@ function buildSpawnSnake(head, direction) {
   ];
 }
 
+function getCornerSpawnEntries(width, height) {
+  return [
+    {
+      head: { x: 0, y: 0 },
+      directions: ["RIGHT", "DOWN"]
+    },
+    {
+      head: { x: width - 1, y: 0 },
+      directions: ["LEFT", "DOWN"]
+    },
+    {
+      head: { x: 0, y: height - 1 },
+      directions: ["RIGHT", "UP"]
+    },
+    {
+      head: { x: width - 1, y: height - 1 },
+      directions: ["LEFT", "UP"]
+    }
+  ];
+}
+
 export function toCellKey(position) {
   return `${position.x},${position.y}`;
 }
@@ -92,6 +114,7 @@ export function createRogueSlots(count, randomFn = Math.random) {
       active: false,
       snake: [],
       direction: "RIGHT",
+      emergingTicks: 0,
       respawnTicks: randomIntInclusive(INITIAL_DELAY_MIN, INITIAL_DELAY_MAX, randomFn)
     });
   }
@@ -229,21 +252,17 @@ export function spawnRogueSnake(
 ) {
   const candidates = [];
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const head = { x, y };
+  const cornerEntries = getCornerSpawnEntries(width, height);
+  for (const cornerEntry of cornerEntries) {
+    for (const direction of cornerEntry.directions) {
+      const snake = buildSpawnSnake(cornerEntry.head, direction);
+      const headKey = toCellKey(snake[0]);
+      const canUse =
+        isInsideBoard(snake[0], width, height) &&
+        !occupiedCells.has(headKey);
 
-      for (const direction of DIRECTION_ORDER) {
-        const snake = buildSpawnSnake(head, direction);
-        const canUse = snake.every(
-          (part) =>
-            isInsideBoard(part, width, height) &&
-            !occupiedCells.has(toCellKey(part))
-        );
-
-        if (canUse) {
-          candidates.push({ snake, direction });
-        }
+      if (canUse) {
+        candidates.push({ snake, direction });
       }
     }
   }
@@ -260,6 +279,7 @@ export function spawnRogueSnake(
     active: true,
     snake: cloneSnake(choice.snake),
     direction: choice.direction,
+    emergingTicks: EMERGING_SEGMENTS,
     respawnTicks: 0
   };
 }
@@ -277,10 +297,14 @@ export function moveRogueSnake(
   }
 
   const head = rogue.snake[0];
+  const emergingTicks = rogue.emergingTicks ?? 0;
   const options = [];
+  const directionsToEvaluate =
+    emergingTicks > 0 ? [rogue.direction] : DIRECTION_ORDER;
 
-  for (const direction of DIRECTION_ORDER) {
+  for (const direction of directionsToEvaluate) {
     if (
+      emergingTicks === 0 &&
       rogue.snake.length > 1 &&
       OPPOSITE_DIRECTIONS[rogue.direction] === direction
     ) {
@@ -342,7 +366,8 @@ export function moveRogueSnake(
       ...rogue,
       active: true,
       direction: choice.direction,
-      snake
+      snake,
+      emergingTicks: Math.max(0, emergingTicks - 1)
     },
     ateFood: choice.ateFood
   };

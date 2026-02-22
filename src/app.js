@@ -3,8 +3,8 @@ import {
   DEFAULT_GRID_WIDTH,
   END_REASONS,
   createInitialState,
+  isInsideBoard,
   placeFood,
-  positionsEqual,
   setDirection,
   stepState,
   togglePause
@@ -170,6 +170,7 @@ function spawnRogueAtIndex(index) {
     ...slot,
     active: false,
     snake: [],
+    emergingTicks: 0,
     respawnTicks: randomRespawnTicks()
   };
 }
@@ -180,6 +181,7 @@ function defeatRogueAtIndex(index) {
     ...rogue,
     active: false,
     snake: [],
+    emergingTicks: 0,
     respawnTicks: randomRespawnTicks()
   };
 }
@@ -305,6 +307,10 @@ function render() {
       }
 
       for (const part of rogue.snake) {
+        if (!isInsideBoard(part, state.width, state.height)) {
+          continue;
+        }
+
         const index = getCellIndex(part.x, part.y, state.width);
         const cell = boardCells[index];
         if (cell) {
@@ -313,11 +319,17 @@ function render() {
       }
 
       const rogueHead = rogue.snake[0];
-      const rogueHeadIndex = getCellIndex(rogueHead.x, rogueHead.y, state.width);
-      boardCells[rogueHeadIndex]?.classList.add("rogue-head");
+      if (isInsideBoard(rogueHead, state.width, state.height)) {
+        const rogueHeadIndex = getCellIndex(rogueHead.x, rogueHead.y, state.width);
+        boardCells[rogueHeadIndex]?.classList.add("rogue-head");
+      }
     }
 
     for (const part of state.snake) {
+      if (!isInsideBoard(part, state.width, state.height)) {
+        continue;
+      }
+
       const index = getCellIndex(part.x, part.y, state.width);
       const cell = boardCells[index];
       if (cell) {
@@ -326,10 +338,12 @@ function render() {
     }
 
     const head = state.snake[0];
-    const headIndex = getCellIndex(head.x, head.y, state.width);
-    boardCells[headIndex]?.classList.add("head");
+    if (isInsideBoard(head, state.width, state.height)) {
+      const headIndex = getCellIndex(head.x, head.y, state.width);
+      boardCells[headIndex]?.classList.add("head");
+    }
 
-    if (state.food) {
+    if (state.food && isInsideBoard(state.food, state.width, state.height)) {
       const foodIndex = getCellIndex(state.food.x, state.food.y, state.width);
       boardCells[foodIndex]?.classList.add("food");
     }
