@@ -153,3 +153,46 @@ test("food placement never lands on snake", () => {
 
   assert.deepEqual(food, { x: 2, y: 2 });
 });
+
+test("food placement never lands on blocked positions", () => {
+  const snake = [{ x: 0, y: 0 }];
+  const blocked = [
+    { x: 1, y: 0 },
+    { x: 2, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 },
+    { x: 2, y: 1 },
+    { x: 0, y: 2 },
+    { x: 1, y: 2 }
+  ];
+
+  const food = placeFood(snake, 3, 3, () => 0.5, blocked);
+
+  assert.deepEqual(food, { x: 2, y: 2 });
+});
+
+test("blocked positions are considered when spawning food after eating", () => {
+  const state = createInitialState({
+    width: 3,
+    height: 2,
+    snake: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 1, y: 1 }
+    ],
+    direction: "RIGHT",
+    food: { x: 1, y: 0 }
+  });
+
+  const next = stepState(state, {
+    randomFn: () => 0,
+    blockedPositions: [
+      { x: 2, y: 0 },
+      { x: 2, y: 1 }
+    ]
+  });
+
+  assert.equal(next.gameOver, true);
+  assert.equal(next.endReason, END_REASONS.FILLED_BOARD);
+  assert.equal(next.food, null);
+});

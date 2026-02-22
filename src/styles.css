@@ -33,9 +33,31 @@ body {
   font-size: 1.25rem;
 }
 
+.hud-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+}
+
 .score {
   margin: 0;
   font-weight: 600;
+}
+
+.rogue-meta {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.setup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.setup label {
+  font-size: 0.92rem;
 }
 
 .board-wrap {
@@ -68,6 +90,14 @@ body {
   background: #175b17;
 }
 
+.cell.rogue {
+  background: #3364a9;
+}
+
+.cell.rogue-head {
+  background: #1f3f74;
+}
+
 .cell.food {
   background: #ca2a2a;
 }
@@ -97,8 +127,23 @@ button {
   font: inherit;
 }
 
+select {
+  appearance: none;
+  border: 1px solid #adadad;
+  background: #fff;
+  color: inherit;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.25rem;
+  font: inherit;
+}
+
 button:active {
   background: #f0f0f0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .controls {

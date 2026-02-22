@@ -11,6 +11,7 @@ export const DIRECTIONS = {
 export const END_REASONS = {
   HIT_WALL: "HIT_WALL",
   HIT_SELF: "HIT_SELF",
+  HIT_ROGUE: "HIT_ROGUE",
   FILLED_BOARD: "FILLED_BOARD"
 };
 
@@ -65,8 +66,17 @@ export function isInsideBoard(position, width, height) {
   );
 }
 
-export function placeFood(snake, width, height, randomFn = Math.random) {
+export function placeFood(
+  snake,
+  width,
+  height,
+  randomFn = Math.random,
+  blockedPositions = []
+) {
   const occupied = new Set(snake.map(toKey));
+  for (const blocked of blockedPositions) {
+    occupied.add(toKey(blocked));
+  }
   const available = [];
 
   for (let y = 0; y < height; y += 1) {
@@ -93,8 +103,11 @@ export function createInitialState(options = {}) {
   const direction = options.direction ?? "RIGHT";
   const snake = options.snake ? cloneSnake(options.snake) : createInitialSnake(width, height);
   const randomFn = options.randomFn ?? Math.random;
+  const blockedPositions = options.blockedPositions ?? [];
   const hasFoodOption = Object.prototype.hasOwnProperty.call(options, "food");
-  const food = hasFoodOption ? options.food : placeFood(snake, width, height, randomFn);
+  const food = hasFoodOption
+    ? options.food
+    : placeFood(snake, width, height, randomFn, blockedPositions);
 
   return {
     width,
@@ -145,7 +158,30 @@ export function restartState(state, randomFn = Math.random) {
   });
 }
 
-export function stepState(state, randomFn = Math.random) {
+function resolveStepOptions(randomOrOptions) {
+  if (typeof randomOrOptions === "function") {
+    return {
+      randomFn: randomOrOptions,
+      blockedPositions: []
+    };
+  }
+
+  if (randomOrOptions && typeof randomOrOptions === "object") {
+    return {
+      randomFn: randomOrOptions.randomFn ?? Math.random,
+      blockedPositions: randomOrOptions.blockedPositions ?? []
+    };
+  }
+
+  return {
+    randomFn: Math.random,
+    blockedPositions: []
+  };
+}
+
+export function stepState(state, randomOrOptions = Math.random) {
+  const { randomFn, blockedPositions } = resolveStepOptions(randomOrOptions);
+
   if (state.gameOver || state.paused) {
     return state;
   }
@@ -198,7 +234,13 @@ export function stepState(state, randomFn = Math.random) {
   const score = state.score + (ateFood ? 1 : 0);
 
   if (ateFood) {
-    food = placeFood(snake, state.width, state.height, randomFn);
+    food = placeFood(
+      snake,
+      state.width,
+      state.height,
+      randomFn,
+      blockedPositions
+    );
     if (food === null) {
       gameOver = true;
       endReason = END_REASONS.FILLED_BOARD;

@@ -10,7 +10,23 @@
     <main class="app">
       <section class="hud">
         <h1>Snake</h1>
-        <p class="score">Score: <span id="score">0</span></p>
+        <div class="hud-meta">
+          <p class="score">Score: <span id="score">0</span></p>
+          <p class="rogue-meta">AI: <span id="rogue-status">0/0</span></p>
+        </div>
+      </section>
+
+      <section class="setup" aria-label="Pre-game setup">
+        <label for="rogue-count">AI snakes</label>
+        <select id="rogue-count" name="rogue-count">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+        <button id="start-btn" type="button">Start Game</button>
       </section>
 
       <section class="board-wrap">
@@ -51,6 +67,17 @@
       <div class="modal-card">
         <h2 id="modal-title">Game Over</h2>
         <p id="modal-message"></p>
+        <section class="setup modal-setup" aria-label="Game over setup">
+          <label for="modal-rogue-count">AI snakes</label>
+          <select id="modal-rogue-count" name="modal-rogue-count">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+        </section>
         <button id="modal-restart-btn" type="button">Play Again</button>
       </div>
     </section>
