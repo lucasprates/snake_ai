@@ -13,6 +13,7 @@ import {
   clampRogueCount,
   createRogueSlots,
   getActiveRogueSegments,
+  getRogueCollisionResult,
   MAX_ROGUE_SNAKES,
   moveRogueSnake,
   randomRespawnTicks,
@@ -118,12 +119,6 @@ function countActiveRogues() {
   return rogues.filter((rogue) => rogue.active).length;
 }
 
-function isPlayerHeadTouchingRogue() {
-  const head = state.snake[0];
-
-  return getActiveRogueSegments(rogues).some((part) => positionsEqual(head, part));
-}
-
 function markPlayerDefeatedByRogue() {
   state = {
     ...state,
@@ -179,6 +174,16 @@ function spawnRogueAtIndex(index) {
   };
 }
 
+function defeatRogueAtIndex(index) {
+  const rogue = rogues[index];
+  rogues[index] = {
+    ...rogue,
+    active: false,
+    snake: [],
+    respawnTicks: randomRespawnTicks()
+  };
+}
+
 function respawnFoodWithRogues() {
   const blockedPositions = getActiveRogueSegments(rogues);
   const nextFood = placeFood(
@@ -220,22 +225,16 @@ function tickRogueLifecycle() {
       continue;
     }
 
-    const blockedCells = buildSpawnOccupiedCells(rogue.id);
     const moved = moveRogueSnake(
       rogue,
       state.food,
       state.width,
       state.height,
-      blockedCells
+      new Set()
     );
 
     if (!moved) {
-      rogues[index] = {
-        ...rogue,
-        active: false,
-        snake: [],
-        respawnTicks: randomRespawnTicks()
-      };
+      defeatRogueAtIndex(index);
       continue;
     }
 
@@ -247,6 +246,36 @@ function tickRogueLifecycle() {
         return;
       }
     }
+  }
+}
+
+function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
+  const { defeatedRogueIds, playerDefeated } = getRogueCollisionResult(
+    rogues,
+    state.snake,
+    {
+      previousPlayerHead,
+      previousRogueHeads
+    }
+  );
+
+  if (defeatedRogueIds.length === 0 && !playerDefeated) {
+    return;
+  }
+
+  const defeatedSet = new Set(defeatedRogueIds);
+  for (let index = 0; index < rogues.length; index += 1) {
+    if (!rogues[index].active) {
+      continue;
+    }
+
+    if (defeatedSet.has(rogues[index].id)) {
+      defeatRogueAtIndex(index);
+    }
+  }
+
+  if (playerDefeated) {
+    markPlayerDefeatedByRogue();
   }
 }
 
@@ -418,6 +447,16 @@ setInterval(() => {
     return;
   }
 
+  const previousPlayerHead = state.snake[0] ? { ...state.snake[0] } : null;
+  const previousRogueHeads = new Map();
+  for (const rogue of rogues) {
+    if (!rogue.active || rogue.snake.length === 0) {
+      continue;
+    }
+
+    previousRogueHeads.set(rogue.id, { ...rogue.snake[0] });
+  }
+
   const blockedPositions = getActiveRogueSegments(rogues);
   const nextState = stepState(state, {
     randomFn: Math.random,
@@ -425,12 +464,9 @@ setInterval(() => {
   });
   state = nextState;
 
-  if (!state.gameOver && !state.paused && isPlayerHeadTouchingRogue()) {
-    markPlayerDefeatedByRogue();
-  }
-
   if (!state.gameOver && !state.paused) {
     tickRogueLifecycle();
+    resolveRogueCollisions(previousPlayerHead, previousRogueHeads);
   }
 
   render();

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   clampRogueCount,
   createRogueSlots,
+  getRogueCollisionResult,
   moveRogueSnake,
   randomRespawnTicks,
   spawnRogueSnake,
@@ -129,4 +130,206 @@ test("rogue snake dies when no safe move exists", () => {
   );
 
   assert.equal(moved, null);
+});
+
+test("rogue dies when rogue head reaches player body", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    }
+  ];
+
+  const playerSnake = [
+    { x: 5, y: 5 },
+    { x: 2, y: 2 },
+    { x: 5, y: 4 }
+  ];
+
+  const result = getRogueCollisionResult(rogues, playerSnake);
+
+  assert.deepEqual(result.defeatedRogueIds, [1]);
+  assert.equal(result.playerDefeated, false);
+});
+
+test("player dies when player head reaches rogue body", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 6, y: 6 },
+        { x: 2, y: 2 },
+        { x: 6, y: 5 }
+      ]
+    }
+  ];
+
+  const playerSnake = [
+    { x: 2, y: 2 },
+    { x: 3, y: 2 },
+    { x: 4, y: 2 }
+  ];
+
+  const result = getRogueCollisionResult(rogues, playerSnake);
+
+  assert.deepEqual(result.defeatedRogueIds, []);
+  assert.equal(result.playerDefeated, true);
+});
+
+test("player and rogue both die on same-cell head collision", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    }
+  ];
+
+  const playerSnake = [
+    { x: 2, y: 2 },
+    { x: 3, y: 2 },
+    { x: 4, y: 2 }
+  ];
+
+  const result = getRogueCollisionResult(rogues, playerSnake);
+
+  assert.deepEqual(result.defeatedRogueIds, [1]);
+  assert.equal(result.playerDefeated, true);
+});
+
+test("player and rogue both die on head-swap collision", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "LEFT",
+      snake: [
+        { x: 1, y: 1 },
+        { x: 1, y: 2 },
+        { x: 1, y: 3 }
+      ]
+    }
+  ];
+
+  const playerSnake = [
+    { x: 2, y: 1 },
+    { x: 2, y: 2 },
+    { x: 2, y: 3 }
+  ];
+
+  const result = getRogueCollisionResult(rogues, playerSnake, {
+    previousPlayerHead: { x: 1, y: 1 },
+    previousRogueHeads: new Map([[1, { x: 2, y: 1 }]])
+  });
+
+  assert.deepEqual(result.defeatedRogueIds, [1]);
+  assert.equal(result.playerDefeated, true);
+});
+
+test("only the colliding rogue dies on head-into-other-body collision", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      direction: "UP",
+      snake: [
+        { x: 4, y: 4 },
+        { x: 2, y: 2 },
+        { x: 2, y: 3 }
+      ]
+    }
+  ];
+
+  const result = getRogueCollisionResult(rogues, []);
+
+  assert.deepEqual(result.defeatedRogueIds, [1]);
+  assert.equal(result.playerDefeated, false);
+});
+
+test("both rogues die when heads overlap on the same cell", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 3, y: 3 },
+        { x: 2, y: 3 },
+        { x: 1, y: 3 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      direction: "LEFT",
+      snake: [
+        { x: 3, y: 3 },
+        { x: 4, y: 3 },
+        { x: 5, y: 3 }
+      ]
+    }
+  ];
+
+  const result = getRogueCollisionResult(rogues, []);
+
+  assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);
+  assert.equal(result.playerDefeated, false);
+});
+
+test("both rogues die on head-swap collision", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 2, y: 1 },
+        { x: 1, y: 1 },
+        { x: 0, y: 1 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      direction: "LEFT",
+      snake: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 3, y: 1 }
+      ]
+    }
+  ];
+
+  const result = getRogueCollisionResult(rogues, [], {
+    previousRogueHeads: new Map([
+      [1, { x: 1, y: 1 }],
+      [2, { x: 2, y: 1 }]
+    ])
+  });
+
+  assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);
+  assert.equal(result.playerDefeated, false);
 });

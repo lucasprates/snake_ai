@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.1`
+Current version: `0.2`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 
@@ -10,8 +10,9 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 - Food spawning on unoccupied cells
 - Snake growth and score updates when food is eaten
 - Pre-game setup to choose `0-5` AI rogue snakes
-- AI snakes that chase food, die when trapped, and respawn after random delays
-- Player loses when colliding with a rogue snake
+- AI snakes that chase food, eat fruit, grow, die, and respawn after random delays
+- Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
+- Game-over modal includes AI count selector synced with the main setup selector
 - Game over on wall collision or self collision
 - Win/end state when the board is fully filled
 - Restart and pause/resume controls
@@ -49,6 +50,7 @@ http://localhost:4173
 ## Controls
 
 - Configure AI snakes: choose count (`0-5`) and press `Start Game` / `Apply & Restart`
+- At game over, change AI count in modal and press `Play Again` to restart with new value
 - Move: `Arrow Up/Down/Left/Right` or `W/A/S/D`
 - Pause/Resume: `Space` or `Pause` button
 - Restart: `R`, `Restart` button, or modal `Play Again`
@@ -56,7 +58,7 @@ http://localhost:4173
 ## Scripts
 
 - `npm run dev`: starts a static server on port `4173`
-- `npm test`: runs logic tests in `tests/gameLogic.test.js`
+- `npm test`: runs logic tests in `tests/gameLogic.test.js` and `tests/rogueLogic.test.js`
 
 ## Test Coverage (Core Logic)
 
@@ -69,7 +71,8 @@ Current tests cover:
 - Filled-board end condition
 - Reverse-direction input prevention
 - Food placement on valid empty cells only
-- Rogue snake spawn, movement, growth, and trapped-death behavior
+- Rogue snake spawn, movement, growth, and respawn behavior
+- Rogue/player and rogue/rogue collision outcomes (body-hit, same-cell head-on, and head-swap)
 
 ## Manual Verification Checklist
 
@@ -78,8 +81,11 @@ Current tests cover:
 - Confirm keyboard controls respond as expected
 - Confirm touch/on-screen controls work on small screens
 - Eat food and verify snake length + score increase by 1
-- Verify AI snakes chase food and respawn after dying
-- Hit a rogue snake and verify game-over modal appears
+- Verify AI snakes chase food, can eat fruit, and respawn after dying
+- Verify player head into rogue body causes game over
+- Verify rogue head into player body kills rogue and player survives
+- Verify player/rogue head-on and head-swap collisions defeat both
+- Verify rogue/rogue head-on and head-swap collisions defeat both rogues
 - Hit a wall and verify game-over modal appears
 - Hit snake body and verify game-over modal appears
 - Pause and resume without state corruption

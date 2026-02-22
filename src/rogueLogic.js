@@ -119,6 +119,107 @@ export function getActiveRogueSegments(rogues, excludeId = null) {
   return segments;
 }
 
+export function getRogueCollisionResult(
+  rogues,
+  playerSnake = [],
+  options = {}
+) {
+  const previousPlayerHead = options.previousPlayerHead ?? null;
+  const previousRogueHeads = options.previousRogueHeads ?? new Map();
+  const activeRogues = rogues.filter(
+    (rogue) => rogue.active && rogue.snake.length > 0
+  );
+  const defeatedRogueIds = new Set();
+  let playerDefeated = false;
+
+  const playerHead = playerSnake[0] ?? null;
+  const playerBody = playerSnake.slice(1);
+
+  if (playerHead) {
+    for (const rogue of activeRogues) {
+      const rogueHead = rogue.snake[0];
+
+      if (positionsEqual(rogueHead, playerHead)) {
+        defeatedRogueIds.add(rogue.id);
+        playerDefeated = true;
+      }
+
+      const rogueBodyHit = rogue.snake
+        .slice(1)
+        .some((part) => positionsEqual(part, playerHead));
+      if (rogueBodyHit) {
+        playerDefeated = true;
+      }
+
+      const playerBodyHit = playerBody.some((part) => positionsEqual(part, rogueHead));
+      if (playerBodyHit) {
+        defeatedRogueIds.add(rogue.id);
+      }
+
+      const previousRogueHead = previousRogueHeads.get(rogue.id) ?? null;
+      if (
+        previousPlayerHead &&
+        previousRogueHead &&
+        positionsEqual(playerHead, previousRogueHead) &&
+        positionsEqual(rogueHead, previousPlayerHead)
+      ) {
+        defeatedRogueIds.add(rogue.id);
+        playerDefeated = true;
+      }
+    }
+  }
+
+  for (let index = 0; index < activeRogues.length; index += 1) {
+    const rogue = activeRogues[index];
+    const rogueHead = rogue.snake[0];
+
+    for (let secondIndex = index + 1; secondIndex < activeRogues.length; secondIndex += 1) {
+      const otherRogue = activeRogues[secondIndex];
+      const otherHead = otherRogue.snake[0];
+
+      if (positionsEqual(rogueHead, otherHead)) {
+        defeatedRogueIds.add(rogue.id);
+        defeatedRogueIds.add(otherRogue.id);
+      }
+
+      const previousHead = previousRogueHeads.get(rogue.id) ?? null;
+      const otherPreviousHead = previousRogueHeads.get(otherRogue.id) ?? null;
+      if (
+        previousHead &&
+        otherPreviousHead &&
+        positionsEqual(rogueHead, otherPreviousHead) &&
+        positionsEqual(otherHead, previousHead)
+      ) {
+        defeatedRogueIds.add(rogue.id);
+        defeatedRogueIds.add(otherRogue.id);
+      }
+    }
+  }
+
+  for (const rogue of activeRogues) {
+    const rogueHead = rogue.snake[0];
+
+    for (const otherRogue of activeRogues) {
+      if (rogue.id === otherRogue.id) {
+        continue;
+      }
+
+      const hitBody = otherRogue.snake
+        .slice(1)
+        .some((part) => positionsEqual(part, rogueHead));
+      if (hitBody) {
+        defeatedRogueIds.add(rogue.id);
+        break;
+      }
+    }
+  }
+
+  return {
+    defeatedRogueIds: [...defeatedRogueIds],
+    playerDefeated
+  };
+}
+
 export function spawnRogueSnake(
   id,
   width,
