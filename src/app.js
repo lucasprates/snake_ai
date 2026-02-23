@@ -32,6 +32,7 @@ const DIRECTION_KEYS = {
   KeyA: "LEFT",
   KeyD: "RIGHT"
 };
+const ROGUE_THEME_CLASSES = ["rogue-theme-red", "rogue-theme-blue"];
 
 const boardElement = document.getElementById("board");
 const scoreElement = document.getElementById("score");
@@ -54,7 +55,9 @@ boardElement.style.setProperty("--grid-height", DEFAULT_GRID_HEIGHT.toString());
 for (let y = 0; y < DEFAULT_GRID_HEIGHT; y += 1) {
   for (let x = 0; x < DEFAULT_GRID_WIDTH; x += 1) {
     const cell = document.createElement("div");
-    cell.className = "cell";
+    const tileClass = (x + y) % 2 === 0 ? "tile-even" : "tile-odd";
+    cell.className = `cell ${tileClass}`;
+    cell.dataset.baseClass = cell.className;
     boardCells.push(cell);
     boardElement.append(cell);
   }
@@ -62,6 +65,182 @@ for (let y = 0; y < DEFAULT_GRID_HEIGHT; y += 1) {
 
 function getCellIndex(x, y, width) {
   return y * width + x;
+}
+
+function getDirectionNameFromDelta(deltaX, deltaY) {
+  if (deltaX === 1 && deltaY === 0) {
+    return "RIGHT";
+  }
+
+  if (deltaX === -1 && deltaY === 0) {
+    return "LEFT";
+  }
+
+  if (deltaX === 0 && deltaY === -1) {
+    return "UP";
+  }
+
+  if (deltaX === 0 && deltaY === 1) {
+    return "DOWN";
+  }
+
+  return null;
+}
+
+function getDirectionName(from, to) {
+  return getDirectionNameFromDelta(to.x - from.x, to.y - from.y);
+}
+
+function toDirectionClass(direction) {
+  if (direction === "UP") {
+    return "dir-up";
+  }
+
+  if (direction === "DOWN") {
+    return "dir-down";
+  }
+
+  if (direction === "LEFT") {
+    return "dir-left";
+  }
+
+  return "dir-right";
+}
+
+function getTurnClass(directionA, directionB) {
+  if (!directionA || !directionB) {
+    return null;
+  }
+
+  const hasUp = directionA === "UP" || directionB === "UP";
+  const hasDown = directionA === "DOWN" || directionB === "DOWN";
+  const hasLeft = directionA === "LEFT" || directionB === "LEFT";
+  const hasRight = directionA === "RIGHT" || directionB === "RIGHT";
+
+  if (hasUp && hasRight) {
+    return "turn-ur";
+  }
+
+  if (hasRight && hasDown) {
+    return "turn-rd";
+  }
+
+  if (hasDown && hasLeft) {
+    return "turn-dl";
+  }
+
+  if (hasLeft && hasUp) {
+    return "turn-lu";
+  }
+
+  return null;
+}
+
+function getStraightDirectionClass(directionA, directionB) {
+  const horizontal =
+    (directionA === "LEFT" || directionA === "RIGHT") &&
+    (directionB === "LEFT" || directionB === "RIGHT");
+  if (horizontal) {
+    return "dir-right";
+  }
+
+  const vertical =
+    (directionA === "UP" || directionA === "DOWN") &&
+    (directionB === "UP" || directionB === "DOWN");
+  if (vertical) {
+    return "dir-down";
+  }
+
+  return "dir-right";
+}
+
+function getRogueThemeClass(rogueId) {
+  const themeIndex = Math.abs((rogueId ?? 1) - 1) % ROGUE_THEME_CLASSES.length;
+  return ROGUE_THEME_CLASSES[themeIndex];
+}
+
+function getSnakeRenderDescriptors(snake, fallbackDirection) {
+  if (!snake || snake.length === 0) {
+    return [];
+  }
+
+  const descriptors = [];
+
+  for (let index = 0; index < snake.length; index += 1) {
+    const part = snake[index];
+
+    if (index === 0) {
+      const neck = snake[1] ?? null;
+      const headDirection = neck
+        ? getDirectionName(neck, part)
+        : fallbackDirection;
+      descriptors.push({
+        part,
+        roleClass: "segment-head",
+        orientationClass: toDirectionClass(headDirection)
+      });
+      continue;
+    }
+
+    if (index === snake.length - 1) {
+      const previous = snake[index - 1] ?? null;
+      const tailDirection = previous
+        ? getDirectionName(previous, part)
+        : fallbackDirection;
+      descriptors.push({
+        part,
+        roleClass: "segment-tail",
+        orientationClass: toDirectionClass(tailDirection)
+      });
+      continue;
+    }
+
+    const previous = snake[index - 1];
+    const next = snake[index + 1];
+    const directionToPrevious = getDirectionName(part, previous);
+    const directionToNext = getDirectionName(part, next);
+    const turnClass = getTurnClass(directionToPrevious, directionToNext);
+
+    if (turnClass) {
+      descriptors.push({
+        part,
+        roleClass: "segment-turn",
+        orientationClass: turnClass
+      });
+      continue;
+    }
+
+    descriptors.push({
+      part,
+      roleClass: "segment-body",
+      orientationClass: getStraightDirectionClass(
+        directionToPrevious,
+        directionToNext
+      )
+    });
+  }
+
+  return descriptors;
+}
+
+function paintSnakeSprites(snake, fallbackDirection, ownerClasses) {
+  const descriptors = getSnakeRenderDescriptors(snake, fallbackDirection);
+
+  for (const descriptor of descriptors) {
+    const { part, roleClass, orientationClass } = descriptor;
+
+    if (!isInsideBoard(part, state.width, state.height)) {
+      continue;
+    }
+
+    const index = getCellIndex(part.x, part.y, state.width);
+    const cell = boardCells[index];
+    if (!cell) {
+      continue;
+    }
+
+    cell.classList.add("segment", roleClass, orientationClass, ...ownerClasses);
+  }
 }
 
 function getGameOverMessage(reason) {
@@ -92,7 +271,7 @@ let sessionStarted = false;
 
 function resetCellClasses() {
   for (const cell of boardCells) {
-    cell.className = "cell";
+    cell.className = cell.dataset.baseClass ?? "cell";
   }
 }
 
@@ -306,42 +485,13 @@ function render() {
         continue;
       }
 
-      for (const part of rogue.snake) {
-        if (!isInsideBoard(part, state.width, state.height)) {
-          continue;
-        }
-
-        const index = getCellIndex(part.x, part.y, state.width);
-        const cell = boardCells[index];
-        if (cell) {
-          cell.classList.add("rogue");
-        }
-      }
-
-      const rogueHead = rogue.snake[0];
-      if (isInsideBoard(rogueHead, state.width, state.height)) {
-        const rogueHeadIndex = getCellIndex(rogueHead.x, rogueHead.y, state.width);
-        boardCells[rogueHeadIndex]?.classList.add("rogue-head");
-      }
+      paintSnakeSprites(rogue.snake, rogue.direction, [
+        "rogue",
+        getRogueThemeClass(rogue.id)
+      ]);
     }
 
-    for (const part of state.snake) {
-      if (!isInsideBoard(part, state.width, state.height)) {
-        continue;
-      }
-
-      const index = getCellIndex(part.x, part.y, state.width);
-      const cell = boardCells[index];
-      if (cell) {
-        cell.classList.add("snake");
-      }
-    }
-
-    const head = state.snake[0];
-    if (isInsideBoard(head, state.width, state.height)) {
-      const headIndex = getCellIndex(head.x, head.y, state.width);
-      boardCells[headIndex]?.classList.add("head");
-    }
+    paintSnakeSprites(state.snake, state.direction, ["player"]);
 
     if (state.food && isInsideBoard(state.food, state.width, state.height)) {
       const foodIndex = getCellIndex(state.food.x, state.food.y, state.width);

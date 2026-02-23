@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.2.1`
+Current version: `0.3.0`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 
@@ -22,6 +22,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
 
 ## Patch Notes
 
+- `v0.3.0`: upgraded board rendering with 2D sprite visuals for player snake (green head/body/tail), AI snakes (red/blue themes), animated food, and textured background/frame styling.
 - `v0.2.1`: fixed rogue spawn rendering edge case where emerging off-board segments could appear on the opposite side of the grid.
 
 ## Tech Stack
