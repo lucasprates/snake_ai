@@ -61,10 +61,8 @@ body {
 }
 
 .hud {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8rem;
+  display: grid;
+  gap: 0.25rem;
 }
 
 .hud h1 {
@@ -80,19 +78,22 @@ body {
 }
 
 .hud-meta {
-  display: grid;
-  justify-items: end;
-  gap: 0.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
 }
 
 .score,
+.high-score,
 .rogue-meta {
   margin: 0;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .rogue-meta {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
 }
 
 .setup,
@@ -101,6 +102,46 @@ body {
   align-items: center;
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.scores-panel {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid rgba(53, 86, 63, 0.28);
+  border-radius: 0.65rem;
+  background: linear-gradient(180deg, #f8fff5 0%, #eaf5e4 100%);
+}
+
+.scores-panel h2 {
+  margin: 0;
+  font-size: 0.94rem;
+  color: var(--text-soft);
+}
+
+.scores-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.scores-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.32rem 0.5rem;
+  border: 1px solid rgba(95, 130, 104, 0.35);
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
+}
+
+.scores-list li.active {
+  border-color: rgba(53, 86, 63, 0.72);
+  background: rgba(228, 242, 219, 0.95);
 }
 
 .setup label {
@@ -307,13 +348,32 @@ button:disabled {
 
 .controls {
   display: none;
+  justify-items: center;
   gap: 0.5rem;
+}
+
+.controls.controls-visible {
+  display: grid;
+}
+
+.controls-single {
+  display: flex;
+  justify-content: center;
 }
 
 .controls-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
+  width: min(280px, 100%);
+}
+
+#controls-toggle-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, #d7ebd2 0%, #cce2c5 100%);
+}
+
+#scores-toggle-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, #d7ebd2 0%, #cce2c5 100%);
 }
 
 .hidden {
@@ -345,6 +405,15 @@ button:disabled {
   margin: 0;
 }
 
+.modal-score {
+  font-weight: 600;
+  color: #3a5a40;
+}
+
+.modal-score.new-record {
+  color: #d4880f;
+}
+
 @keyframes berry-bob {
   from {
     transform: rotate(0deg) scale(0.8);
@@ -367,5 +436,9 @@ button:disabled {
 
   .controls {
     display: grid;
+  }
+
+  #controls-toggle-btn {
+    display: none;
   }
 }

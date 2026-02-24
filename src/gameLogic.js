@@ -1,3 +1,9 @@
+import {
+  clampRandom,
+  cloneSnake,
+  OPPOSITE_DIRECTIONS
+} from "./shared.js";
+
 export const DEFAULT_GRID_WIDTH = 20;
 export const DEFAULT_GRID_HEIGHT = 20;
 
@@ -15,31 +21,8 @@ export const END_REASONS = {
   FILLED_BOARD: "FILLED_BOARD"
 };
 
-const OPPOSITE_DIRECTIONS = {
-  UP: "DOWN",
-  DOWN: "UP",
-  LEFT: "RIGHT",
-  RIGHT: "LEFT"
-};
-
-function clampRandom(value) {
-  if (!Number.isFinite(value) || value < 0) {
-    return 0;
-  }
-
-  if (value >= 1) {
-    return 0.999999999999;
-  }
-
-  return value;
-}
-
 function toKey(position) {
   return `${position.x},${position.y}`;
-}
-
-function cloneSnake(snake) {
-  return snake.map((part) => ({ x: part.x, y: part.y }));
 }
 
 function createInitialSnake(width, height) {
@@ -148,14 +131,6 @@ export function togglePause(state) {
   }
 
   return { ...state, paused: !state.paused };
-}
-
-export function restartState(state, randomFn = Math.random) {
-  return createInitialState({
-    width: state.width,
-    height: state.height,
-    randomFn
-  });
 }
 
 function resolveStepOptions(randomOrOptions) {

@@ -3,42 +3,25 @@ import {
   isInsideBoard,
   positionsEqual
 } from "./gameLogic.js";
+import {
+  clampRandom,
+  cloneSnake,
+  OPPOSITE_DIRECTIONS
+} from "./shared.js";
 
 export const MAX_ROGUE_SNAKES = 5;
 
 const DIRECTION_ORDER = ["UP", "DOWN", "LEFT", "RIGHT"];
 const EMERGING_SEGMENTS = 2;
-const OPPOSITE_DIRECTIONS = {
-  UP: "DOWN",
-  DOWN: "UP",
-  LEFT: "RIGHT",
-  RIGHT: "LEFT"
-};
 
 const INITIAL_DELAY_MIN = 0;
 const INITIAL_DELAY_MAX = 18;
 const RESPAWN_DELAY_MIN = 8;
 const RESPAWN_DELAY_MAX = 28;
 
-function clampRandom(value) {
-  if (!Number.isFinite(value) || value < 0) {
-    return 0;
-  }
-
-  if (value >= 1) {
-    return 0.999999999999;
-  }
-
-  return value;
-}
-
 function randomIntInclusive(min, max, randomFn = Math.random) {
   const randomValue = clampRandom(randomFn());
   return min + Math.floor(randomValue * (max - min + 1));
-}
-
-function cloneSnake(snake) {
-  return snake.map((part) => ({ x: part.x, y: part.y }));
 }
 
 function manhattanDistance(a, b) {

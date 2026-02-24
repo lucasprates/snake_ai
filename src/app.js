@@ -20,6 +20,13 @@ import {
   spawnRogueSnake,
   toCellKey
 } from "./rogueLogic.js";
+import {
+  createDefaultHighScores,
+  getBestScoreForRogueCount,
+  normalizeHighScores,
+  toHighScoreRows,
+  upsertBestScoreForRogueCount
+} from "./highScoreLogic.js";
 
 const TICK_MS = 140;
 const DIRECTION_KEYS = {
@@ -43,10 +50,20 @@ const modalRogueCountSelect = document.getElementById("modal-rogue-count");
 const startButton = document.getElementById("start-btn");
 const restartButton = document.getElementById("restart-btn");
 const pauseButton = document.getElementById("pause-btn");
+const controlsToggleButton = document.getElementById("controls-toggle-btn");
 const directionButtons = document.querySelectorAll("[data-direction]");
+const controlsElement = document.querySelector(".controls");
 const modalElement = document.getElementById("game-over-modal");
 const modalMessageElement = document.getElementById("modal-message");
+const modalScoreElement = document.getElementById("modal-score");
 const modalRestartButton = document.getElementById("modal-restart-btn");
+const bestAiCountElement = document.getElementById("best-ai-count");
+const highScoreElement = document.getElementById("high-score");
+const scoresToggleButton = document.getElementById("scores-toggle-btn");
+const scoresPanelElement = document.getElementById("scores-panel");
+const scoresListElement = document.getElementById("scores-list");
+const HIGH_SCORES_STORAGE_KEY = "snake_highScoresByAiCount";
+const LEGACY_HIGH_SCORE_STORAGE_KEY = "snake_highScore";
 
 const boardCells = [];
 boardElement.style.setProperty("--grid-width", DEFAULT_GRID_WIDTH.toString());
@@ -263,11 +280,104 @@ function getGameOverMessage(reason) {
   return "Game finished.";
 }
 
+function loadHighScoresByRogueCount() {
+  const fallback = createDefaultHighScores(MAX_ROGUE_SNAKES);
+
+  try {
+    const stored = localStorage.getItem(HIGH_SCORES_STORAGE_KEY);
+    if (stored) {
+      return normalizeHighScores(JSON.parse(stored), MAX_ROGUE_SNAKES);
+    }
+
+    const legacyStored = localStorage.getItem(LEGACY_HIGH_SCORE_STORAGE_KEY);
+    const legacyScore = Number.parseInt(legacyStored, 10);
+    if (Number.isFinite(legacyScore) && legacyScore > 0) {
+      fallback["0"] = legacyScore;
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
+function persistHighScoresByRogueCount() {
+  try {
+    localStorage.setItem(
+      HIGH_SCORES_STORAGE_KEY,
+      JSON.stringify(highScoresByRogueCount)
+    );
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+function getDisplayedBestRogueCount() {
+  return selectedRogueCount;
+}
+
+function renderHighScoreRows(activeRogueCount) {
+  if (!scoresListElement) {
+    return;
+  }
+
+  const rows = toHighScoreRows(highScoresByRogueCount, MAX_ROGUE_SNAKES);
+  scoresListElement.textContent = "";
+
+  for (const row of rows) {
+    const item = document.createElement("li");
+    if (row.rogueCount === activeRogueCount) {
+      item.classList.add("active");
+    }
+
+    const label = document.createElement("span");
+    label.textContent = `AI ${row.rogueCount}`;
+
+    const value = document.createElement("strong");
+    value.textContent = String(row.bestScore);
+
+    item.append(label, value);
+    scoresListElement.append(item);
+  }
+}
+
 let state = createInitialState();
 let rogues = [];
 let configuredRogueCount = 0;
 let selectedRogueCount = 0;
 let sessionStarted = false;
+let highScoresByRogueCount = loadHighScoresByRogueCount();
+let gameOverSummary = null;
+let controlsVisible = false;
+let scoresPanelVisible = false;
+
+function setControlsVisible(visible) {
+  controlsVisible = visible;
+  controlsElement?.classList.toggle("controls-visible", visible);
+
+  if (!controlsToggleButton) {
+    return;
+  }
+
+  controlsToggleButton.textContent = visible
+    ? "Hide On-Screen Controls"
+    : "Show On-Screen Controls";
+  controlsToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
+}
+
+function setScoresPanelVisible(visible) {
+  scoresPanelVisible = visible;
+  scoresPanelElement?.classList.toggle("hidden", !visible);
+
+  if (!scoresToggleButton) {
+    return;
+  }
+
+  scoresToggleButton.textContent = visible
+    ? "Hide Best Scores by AI"
+    : "Show Best Scores by AI";
+  scoresToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
+}
 
 function resetCellClasses() {
   for (const cell of boardCells) {
@@ -406,12 +516,15 @@ function tickRogueLifecycle() {
       continue;
     }
 
+    const blockedCells = new Set(
+      getActiveRogueSegments(rogues, rogue.id).map(toCellKey)
+    );
     const moved = moveRogueSnake(
       rogue,
       state.food,
       state.width,
       state.height,
-      new Set()
+      blockedCells
     );
 
     if (!moved) {
@@ -463,6 +576,8 @@ function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
 function startGame(rogueCount) {
   configuredRogueCount = clampRogueCount(rogueCount);
   setSelectedRogueCount(configuredRogueCount);
+  highScoresByRogueCount = loadHighScoresByRogueCount();
+  gameOverSummary = null;
   state = createInitialState();
   rogues = createRogueSlots(configuredRogueCount);
   sessionStarted = true;
@@ -499,18 +614,51 @@ function render() {
     }
   }
 
-  scoreElement.textContent = sessionStarted ? String(state.score) : "0";
-  rogueStatusElement.textContent = `${countActiveRogues()}/${configuredRogueCount}`;
-
   if (!sessionStarted) {
     statusElement.textContent = `Choose rogue snakes (0-${MAX_ROGUE_SNAKES}) and press Start Game.`;
     modalElement.classList.add("hidden");
+    gameOverSummary = null;
   } else if (state.gameOver) {
     statusElement.textContent = "Game over. Press Restart.";
     modalMessageElement.textContent = getGameOverMessage(state.endReason);
+
+    if (
+      !gameOverSummary ||
+      gameOverSummary.score !== state.score ||
+      gameOverSummary.rogueCount !== configuredRogueCount
+    ) {
+      const updatedScores = upsertBestScoreForRogueCount(
+        highScoresByRogueCount,
+        configuredRogueCount,
+        state.score,
+        MAX_ROGUE_SNAKES
+      );
+      highScoresByRogueCount = updatedScores.highScores;
+      if (updatedScores.isNewRecord) {
+        persistHighScoresByRogueCount();
+      }
+
+      gameOverSummary = {
+        score: state.score,
+        rogueCount: configuredRogueCount,
+        bestScore: updatedScores.bestScore,
+        isNewRecord: updatedScores.isNewRecord
+      };
+    }
+
+    if (gameOverSummary.isNewRecord && gameOverSummary.score > 0) {
+      modalScoreElement.textContent = `New Best for AI ${gameOverSummary.rogueCount}: ${gameOverSummary.score}!`;
+      modalScoreElement.classList.add("new-record");
+    } else {
+      modalScoreElement.textContent =
+        `Score: ${gameOverSummary.score} | ` +
+        `Best (AI ${gameOverSummary.rogueCount}): ${gameOverSummary.bestScore}`;
+      modalScoreElement.classList.remove("new-record");
+    }
     modalElement.classList.remove("hidden");
   } else {
     modalElement.classList.add("hidden");
+    gameOverSummary = null;
 
     if (state.paused) {
       statusElement.textContent = "Paused.";
@@ -518,6 +666,22 @@ function render() {
       statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${countActiveRogues()}/${configuredRogueCount}.`;
     }
   }
+
+  const displayedBestRogueCount = getDisplayedBestRogueCount();
+  const displayedBestScore = getBestScoreForRogueCount(
+    highScoresByRogueCount,
+    displayedBestRogueCount,
+    MAX_ROGUE_SNAKES
+  );
+
+  renderHighScoreRows(displayedBestRogueCount);
+
+  scoreElement.textContent = sessionStarted ? String(state.score) : "0";
+  highScoreElement.textContent = String(displayedBestScore);
+  if (bestAiCountElement) {
+    bestAiCountElement.textContent = String(displayedBestRogueCount);
+  }
+  rogueStatusElement.textContent = `${countActiveRogues()}/${configuredRogueCount}`;
 
   startButton.textContent = sessionStarted ? "Apply & Restart" : "Start Game";
   pauseButton.textContent = state.paused ? "Resume" : "Pause";
@@ -589,16 +753,26 @@ restartButton.addEventListener("click", () => {
   restartGame();
 });
 
+controlsToggleButton?.addEventListener("click", () => {
+  setControlsVisible(!controlsVisible);
+});
+
+scoresToggleButton?.addEventListener("click", () => {
+  setScoresPanelVisible(!scoresPanelVisible);
+});
+
 startButton.addEventListener("click", () => {
   startGame(readConfiguredRogueCount());
 });
 
 rogueCountSelect.addEventListener("change", () => {
   readConfiguredRogueCount();
+  render();
 });
 
 modalRogueCountSelect.addEventListener("change", () => {
   readModalConfiguredRogueCount();
+  render();
 });
 
 modalRestartButton.addEventListener("click", () => {
@@ -637,4 +811,6 @@ setInterval(() => {
 }, TICK_MS);
 
 setSelectedRogueCount(0);
+setControlsVisible(false);
+setScoresPanelVisible(false);
 render();

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   clampRogueCount,
   createRogueSlots,
+  getActiveRogueSegments,
   getRogueCollisionResult,
   moveRogueSnake,
   randomRespawnTicks,
@@ -344,6 +345,38 @@ test("both rogues die when heads overlap on the same cell", () => {
   assert.equal(result.playerDefeated, false);
 });
 
+test("rogue avoids cells occupied by other rogues", () => {
+  const rogue = {
+    id: 1,
+    active: true,
+    direction: "RIGHT",
+    snake: [
+      { x: 2, y: 2 },
+      { x: 1, y: 2 },
+      { x: 0, y: 2 }
+    ]
+  };
+
+  const blockedCells = new Set([
+    toCellKey({ x: 3, y: 2 })
+  ]);
+
+  const moved = moveRogueSnake(
+    rogue,
+    { x: 5, y: 2 },
+    6,
+    6,
+    blockedCells,
+    () => 0
+  );
+
+  assert.ok(moved);
+  assert.ok(
+    moved.rogue.snake[0].x !== 3 || moved.rogue.snake[0].y !== 2,
+    "rogue must not move onto a blocked cell"
+  );
+});
+
 test("both rogues die on head-swap collision", () => {
   const rogues = [
     {
@@ -377,4 +410,90 @@ test("both rogues die on head-swap collision", () => {
 
   assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);
   assert.equal(result.playerDefeated, false);
+});
+
+test("getActiveRogueSegments collects segments from active rogues only", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      snake: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 }
+      ]
+    },
+    {
+      id: 2,
+      active: false,
+      snake: []
+    },
+    {
+      id: 3,
+      active: true,
+      snake: [
+        { x: 5, y: 5 }
+      ]
+    }
+  ];
+
+  const segments = getActiveRogueSegments(rogues);
+  assert.equal(segments.length, 3);
+  assert.deepEqual(segments[0], { x: 0, y: 0 });
+  assert.deepEqual(segments[1], { x: 1, y: 0 });
+  assert.deepEqual(segments[2], { x: 5, y: 5 });
+});
+
+test("getActiveRogueSegments excludes rogue by id", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      snake: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      snake: [
+        { x: 5, y: 5 }
+      ]
+    }
+  ];
+
+  const segments = getActiveRogueSegments(rogues, 1);
+  assert.equal(segments.length, 1);
+  assert.deepEqual(segments[0], { x: 5, y: 5 });
+});
+
+test("rogue picks a random direction when food is null", () => {
+  const rogue = {
+    id: 1,
+    active: true,
+    direction: "RIGHT",
+    snake: [
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 }
+    ]
+  };
+
+  const moved = moveRogueSnake(rogue, null, 6, 6, new Set(), () => 0);
+
+  assert.ok(moved);
+  assert.equal(moved.ateFood, false);
+  assert.equal(moved.rogue.snake.length, 3);
+});
+
+test("rogue spawn returns null when all corners are occupied", () => {
+  const occupiedCells = new Set([
+    toCellKey({ x: 0, y: 0 }),
+    toCellKey({ x: 5, y: 0 }),
+    toCellKey({ x: 0, y: 5 }),
+    toCellKey({ x: 5, y: 5 })
+  ]);
+
+  const rogue = spawnRogueSnake(1, 6, 6, occupiedCells, () => 0);
+  assert.equal(rogue, null);
 });

@@ -6,7 +6,8 @@ import {
   END_REASONS,
   placeFood,
   setDirection,
-  stepState
+  stepState,
+  togglePause
 } from "../src/gameLogic.js";
 
 test("snake moves one cell per tick in current direction", () => {
@@ -195,4 +196,132 @@ test("blocked positions are considered when spawning food after eating", () => {
   assert.equal(next.gameOver, true);
   assert.equal(next.endReason, END_REASONS.FILLED_BOARD);
   assert.equal(next.food, null);
+});
+
+test("togglePause flips paused state and back", () => {
+  const state = createInitialState({
+    width: 6,
+    height: 6,
+    snake: [
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 }
+    ],
+    direction: "RIGHT",
+    food: { x: 5, y: 5 }
+  });
+
+  assert.equal(state.paused, false);
+
+  const paused = togglePause(state);
+  assert.equal(paused.paused, true);
+
+  const resumed = togglePause(paused);
+  assert.equal(resumed.paused, false);
+});
+
+test("togglePause is ignored when game is over", () => {
+  const state = createInitialState({
+    width: 5,
+    height: 5,
+    snake: [
+      { x: 0, y: 2 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 }
+    ],
+    direction: "LEFT",
+    food: { x: 4, y: 4 }
+  });
+
+  const gameOver = stepState(state);
+  assert.equal(gameOver.gameOver, true);
+
+  const result = togglePause(gameOver);
+  assert.equal(result.paused, false);
+  assert.equal(result, gameOver);
+});
+
+test("setDirection ignores invalid direction string", () => {
+  const state = createInitialState({
+    width: 6,
+    height: 6,
+    snake: [
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 }
+    ],
+    direction: "RIGHT",
+    food: { x: 5, y: 5 }
+  });
+
+  const result = setDirection(state, "DIAGONAL");
+  assert.equal(result, state);
+});
+
+test("setDirection ignores duplicate pending direction", () => {
+  const state = createInitialState({
+    width: 6,
+    height: 6,
+    snake: [
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 }
+    ],
+    direction: "RIGHT",
+    food: { x: 5, y: 5 }
+  });
+
+  const result = setDirection(state, "RIGHT");
+  assert.equal(result, state);
+});
+
+test("placeFood returns null when board is completely full", () => {
+  const snake = [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 }
+  ];
+
+  const food = placeFood(snake, 2, 2);
+  assert.equal(food, null);
+});
+
+test("stepState is a no-op when game is paused", () => {
+  const state = createInitialState({
+    width: 6,
+    height: 6,
+    snake: [
+      { x: 3, y: 3 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 }
+    ],
+    direction: "RIGHT",
+    food: { x: 5, y: 5 }
+  });
+
+  const paused = togglePause(state);
+  const next = stepState(paused);
+
+  assert.equal(next, paused);
+});
+
+test("stepState is a no-op when game is over", () => {
+  const state = createInitialState({
+    width: 5,
+    height: 5,
+    snake: [
+      { x: 0, y: 2 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 }
+    ],
+    direction: "LEFT",
+    food: { x: 4, y: 4 }
+  });
+
+  const gameOver = stepState(state);
+  assert.equal(gameOver.gameOver, true);
+
+  const next = stepState(gameOver);
+  assert.equal(next, gameOver);
 });

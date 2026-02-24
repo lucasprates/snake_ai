@@ -1,34 +1,58 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.3.0`
+Current version: `0.3.1`
 
-Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS.
+Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
+
+![Gameplay screenshot](screenshot.png)
 
 ## What It Includes
 
-- Grid-based snake movement with fixed tick loop
+- Grid-based snake movement with fixed tick loop (140ms per tick)
 - Food spawning on unoccupied cells
 - Snake growth and score updates when food is eaten
 - Pre-game setup to choose `0-5` AI rogue snakes
-- AI snakes that chase food, eat fruit, grow, die, and respawn after random delays
+- AI snakes that chase food using Manhattan distance, eat fruit, grow, die, and respawn after random delays
 - AI snakes spawn from random corners and emerge from the wall over initial ticks
 - Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
 - Game-over modal includes AI count selector synced with the main setup selector
-- Game over on wall collision or self collision
+- Persistent best-score tracking per AI count via localStorage (survives page reloads and server restarts)
+- Game over on wall collision, self collision, or rogue collision
 - Win/end state when the board is fully filled
 - Restart and pause/resume controls
 - Keyboard controls (`Arrow` keys + `WASD`) and on-screen touch controls
-- Basic game-over modal with restart action
+- 2D sprite visuals: green player snake, red/blue AI snake themes, animated food berry, and textured grass tiles
+
+## Architecture
+
+```
+src/
+  shared.js       Shared utilities (clampRandom, cloneSnake, OPPOSITE_DIRECTIONS)
+  highScoreLogic.js Pure score logic: per-AI best score normalization and updates
+  gameLogic.js    Pure game state: movement, collisions, food, scoring
+  rogueLogic.js   AI snake behavior: spawning, pathfinding, rogue collisions
+  app.js          DOM rendering, event handling, game loop orchestration
+  styles.css      Sprite rendering, layout, responsive design
+  assets/         SVG sprites (player, rogue-red, rogue-blue, food, tiles)
+```
+
+- `gameLogic.js` and `rogueLogic.js` are pure logic with no DOM access, making them fully testable
+- `app.js` orchestrates the game loop, wiring state updates to CSS-based sprite rendering
+- State is immutable: all updates return new objects via spread
 
 ## Patch Notes
 
+- `v0.3.1`: added persistent per-AI best score tracking with localStorage, plus a “Best Scores by AI” panel toggle.
 - `v0.3.0`: upgraded board rendering with 2D sprite visuals for player snake (green head/body/tail), AI snakes (red/blue themes), animated food, and textured background/frame styling.
 - `v0.2.1`: fixed rogue spawn rendering edge case where emerging off-board segments could appear on the opposite side of the grid.
+- `v0.2`: added symmetric AI collisions (player/rogue and rogue/rogue head-on and head-swap detection) and updated documentation.
+- `v0.1`: initial release with configurable 0-5 AI rogue snakes and basic game mechanics.
 
 ## Tech Stack
 
-- Plain JavaScript modules (`src/app.js`, `src/gameLogic.js`)
+- Plain JavaScript modules (`src/app.js`, `src/gameLogic.js`, `src/rogueLogic.js`, `src/shared.js`, `src/highScoreLogic.js`)
 - HTML/CSS UI (`index.html`, `src/styles.css`)
+- SVG sprite assets (`src/assets/`)
 - Node built-in test runner (`node --test`)
 
 No external runtime dependencies are required.
@@ -58,26 +82,49 @@ http://localhost:4173
 - Configure AI snakes: choose count (`0-5`) and press `Start Game` / `Apply & Restart`
 - At game over, change AI count in modal and press `Play Again` to restart with new value
 - Move: `Arrow Up/Down/Left/Right` or `W/A/S/D`
+- Optional mouse controls on desktop: toggle `Show On-Screen Controls`
+- View per-AI best-score table: toggle `Show Best Scores by AI`
 - Pause/Resume: `Space` or `Pause` button
 - Restart: `R`, `Restart` button, or modal `Play Again`
 
 ## Scripts
 
 - `npm run dev`: starts a static server on port `4173`
-- `npm test`: runs logic tests in `tests/gameLogic.test.js` and `tests/rogueLogic.test.js`
+- `npm test`: runs logic tests in `tests/gameLogic.test.js`, `tests/rogueLogic.test.js`, `tests/shared.test.js`, and `tests/highScoreLogic.test.js`
 
 ## Test Coverage (Core Logic)
 
-Current tests cover:
+48 tests across four test files:
 
+**Shared utilities** (`tests/shared.test.js`):
+- `clampRandom` edge cases (NaN, negative, >= 1, valid pass-through)
+- `cloneSnake` deep copy independence
+- `OPPOSITE_DIRECTIONS` mapping correctness
+
+**Score logic** (`tests/highScoreLogic.test.js`):
+- Per-AI score map creation and normalization
+- AI-count-specific best retrieval
+- Record update behavior (new record vs no change)
+- Ordered row projection for the “Best Scores by AI” panel
+
+**Game logic** (`tests/gameLogic.test.js`):
 - Movement per tick
 - Growth + score increment when eating food
 - Wall collision game-over
 - Self collision game-over
 - Filled-board end condition
 - Reverse-direction input prevention
-- Food placement on valid empty cells only
+- Pause/resume toggling and game-over guard
+- `stepState` no-op when paused or game over
+- Direction input validation (invalid and duplicate inputs)
+- Food placement on valid empty cells only (including full-board edge case)
+
+**Rogue AI** (`tests/rogueLogic.test.js`):
 - Rogue snake spawn, movement, growth, and respawn behavior
+- Rogue spawn returns null when all corners are occupied
+- Rogue segment collection and filtering by ID
+- Rogue pathfinding with null food (random fallback)
+- Rogue avoidance of other rogues' occupied cells
 - Rogue/player and rogue/rogue collision outcomes (body-hit, same-cell head-on, and head-swap)
 
 ## Manual Verification Checklist
