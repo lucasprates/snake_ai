@@ -257,6 +257,7 @@ function paintSnakeSprites(snake, fallbackDirection, ownerClasses) {
     }
 
     cell.classList.add("segment", roleClass, orientationClass, ...ownerClasses);
+    markCellDirty(index);
   }
 }
 
@@ -358,6 +359,7 @@ let gameOverSummary = null;
 let controlsVisible = false;
 let scoresPanelVisible = false;
 let lastHighScoreFingerprint = "";
+let modalWasVisible = false;
 
 function setControlsVisible(visible) {
   controlsVisible = visible;
@@ -387,10 +389,20 @@ function setScoresPanelVisible(visible) {
   scoresToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
 }
 
-function resetCellClasses() {
-  for (const cell of boardCells) {
-    cell.className = cell.dataset.baseClass ?? "cell";
+const dirtyCells = new Set();
+
+function markCellDirty(index) {
+  dirtyCells.add(index);
+}
+
+function resetDirtyCells() {
+  for (const index of dirtyCells) {
+    const cell = boardCells[index];
+    if (cell) {
+      cell.className = cell.dataset.baseClass ?? "cell";
+    }
   }
+  dirtyCells.clear();
 }
 
 function setSelectedRogueCount(value) {
@@ -597,7 +609,7 @@ function startGame(rogueCount) {
 }
 
 function render() {
-  resetCellClasses();
+  resetDirtyCells();
   const activeRogueCount = countActiveRogues();
 
   if (sessionStarted) {
@@ -616,7 +628,10 @@ function render() {
 
     if (state.food && isInsideBoard(state.food, state.width, state.height)) {
       const foodIndex = getCellIndex(state.food.x, state.food.y, state.width);
-      boardCells[foodIndex]?.classList.add("food");
+      if (boardCells[foodIndex]) {
+        boardCells[foodIndex].classList.add("food");
+        markCellDirty(foodIndex);
+      }
     }
   }
 
@@ -672,6 +687,14 @@ function render() {
       statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${configuredRogueCount}.`;
     }
   }
+
+  const modalIsVisible = !modalElement.classList.contains("hidden");
+  if (modalIsVisible && !modalWasVisible) {
+    modalRestartButton.focus();
+  } else if (!modalIsVisible && modalWasVisible) {
+    startButton.focus();
+  }
+  modalWasVisible = modalIsVisible;
 
   const displayedBestRogueCount = getDisplayedBestRogueCount();
   const displayedBestScore = getBestScoreForRogueCount(
