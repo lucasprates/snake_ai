@@ -46,6 +46,12 @@ const DIRECTION_KEYS = {
   KeyD: "RIGHT"
 };
 const ROGUE_THEME_CLASSES = ["rogue-theme-red", "rogue-theme-blue"];
+const DIFFICULTY_LABELS = {
+  [DIFFICULTY_MODES.EASY]: "Easy",
+  [DIFFICULTY_MODES.MEDIUM]: "Medium",
+  [DIFFICULTY_MODES.HARD]: "Hard",
+  [DIFFICULTY_MODES.STORY]: "Story"
+};
 
 const boardElement = document.getElementById("board");
 const scoreElement = document.getElementById("score");
@@ -66,6 +72,7 @@ const modalMessageElement = document.getElementById("modal-message");
 const modalScoreElement = document.getElementById("modal-score");
 const modalRestartButton = document.getElementById("modal-restart-btn");
 const bestAiCountElement = document.getElementById("best-ai-count");
+const bestDifficultyElement = document.getElementById("best-difficulty");
 const highScoreElement = document.getElementById("high-score");
 const scoresToggleButton = document.getElementById("scores-toggle-btn");
 const scoresPanelElement = document.getElementById("scores-panel");
@@ -336,7 +343,23 @@ function persistHighScoresByRogueCount() {
 }
 
 function getDisplayedBestRogueCount() {
+  if (sessionStarted) {
+    return runRogueCount;
+  }
+
   return selectedRogueCount;
+}
+
+function getDisplayedBestDifficulty() {
+  if (sessionStarted) {
+    return runDifficulty;
+  }
+
+  return selectedDifficulty;
+}
+
+function toDifficultyLabel(difficulty) {
+  return DIFFICULTY_LABELS[difficulty] ?? DIFFICULTY_LABELS[DEFAULT_DIFFICULTY];
 }
 
 function renderHighScoreRows(activeRogueCount, difficulty) {
@@ -373,12 +396,14 @@ function renderHighScoreRows(activeRogueCount, difficulty) {
 
 let state = createInitialState();
 let rogues = [];
-let configuredRogueCount = 0;
+let runRogueCount = 0;
+let runDifficulty = DEFAULT_DIFFICULTY;
 let selectedRogueCount = 0;
 let selectedDifficulty = DEFAULT_DIFFICULTY;
 let sessionStarted = false;
 let highScoresByRogueCount = loadHighScoresByRogueCount();
 let gameOverSummary = null;
+let didPersistGameOverScore = false;
 let controlsVisible = false;
 let scoresPanelVisible = false;
 let lastHighScoreFingerprint = "";
@@ -631,7 +656,7 @@ function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
 let tickTimeoutId = null;
 
 function getCurrentTickMs() {
-  return getTickMs(selectedDifficulty, state.score);
+  return getTickMs(runDifficulty, state.score);
 }
 
 function gameTick() {
@@ -682,14 +707,15 @@ function restartTickLoop() {
 }
 
 function startGame(rogueCount, difficulty) {
-  configuredRogueCount = clampRogueCount(rogueCount);
-  setSelectedRogueCount(configuredRogueCount);
-  setSelectedDifficulty(difficulty);
+  runRogueCount = clampRogueCount(rogueCount);
+  runDifficulty = setSelectedDifficulty(difficulty);
+  setSelectedRogueCount(runRogueCount);
   highScoresByRogueCount = loadHighScoresByRogueCount();
   gameOverSummary = null;
+  didPersistGameOverScore = false;
   lastHighScoreFingerprint = "";
   state = createInitialState();
-  rogues = createRogueSlots(configuredRogueCount);
+  rogues = createRogueSlots(runRogueCount);
   sessionStarted = true;
 
   for (let index = 0; index < rogues.length; index += 1) {
@@ -737,16 +763,11 @@ function render() {
     statusElement.textContent = "Game over. Press Restart.";
     modalMessageElement.textContent = getGameOverMessage(state.endReason);
 
-    if (
-      !gameOverSummary ||
-      gameOverSummary.score !== state.score ||
-      gameOverSummary.rogueCount !== configuredRogueCount ||
-      gameOverSummary.difficulty !== selectedDifficulty
-    ) {
+    if (!didPersistGameOverScore) {
       const updatedScores = upsertBestScore(
         highScoresByRogueCount,
-        configuredRogueCount,
-        selectedDifficulty,
+        runRogueCount,
+        runDifficulty,
         state.score,
         MAX_ROGUE_SNAKES,
         ALL_DIFFICULTIES
@@ -758,20 +779,24 @@ function render() {
 
       gameOverSummary = {
         score: state.score,
-        rogueCount: configuredRogueCount,
-        difficulty: selectedDifficulty,
+        rogueCount: runRogueCount,
+        difficulty: runDifficulty,
         bestScore: updatedScores.bestScore,
         isNewRecord: updatedScores.isNewRecord
       };
+      didPersistGameOverScore = true;
     }
 
     if (gameOverSummary.isNewRecord && gameOverSummary.score > 0) {
-      modalScoreElement.textContent = `New Best for AI ${gameOverSummary.rogueCount}: ${gameOverSummary.score}!`;
+      modalScoreElement.textContent =
+        `New Best for AI ${gameOverSummary.rogueCount} ` +
+        `(${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.score}!`;
       modalScoreElement.classList.add("new-record");
     } else {
       modalScoreElement.textContent =
         `Score: ${gameOverSummary.score} | ` +
-        `Best (AI ${gameOverSummary.rogueCount}): ${gameOverSummary.bestScore}`;
+        `Best (AI ${gameOverSummary.rogueCount}, ` +
+        `${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.bestScore}`;
       modalScoreElement.classList.remove("new-record");
     }
     modalElement.classList.remove("hidden");
@@ -782,10 +807,10 @@ function render() {
     if (state.paused) {
       statusElement.textContent = "Paused.";
     } else {
-      const storySpeed = selectedDifficulty === DIFFICULTY_MODES.STORY
+      const storySpeed = runDifficulty === DIFFICULTY_MODES.STORY
         ? ` Speed: ${getCurrentTickMs()}ms.`
         : "";
-      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${configuredRogueCount}.${storySpeed}`;
+      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${runRogueCount}.${storySpeed}`;
     }
   }
 
@@ -798,21 +823,25 @@ function render() {
   modalWasVisible = modalIsVisible;
 
   const displayedBestRogueCount = getDisplayedBestRogueCount();
+  const displayedBestDifficulty = getDisplayedBestDifficulty();
   const displayedBestScore = getBestScore(
     highScoresByRogueCount,
     displayedBestRogueCount,
-    selectedDifficulty,
+    displayedBestDifficulty,
     MAX_ROGUE_SNAKES
   );
 
-  renderHighScoreRows(displayedBestRogueCount, selectedDifficulty);
+  renderHighScoreRows(displayedBestRogueCount, displayedBestDifficulty);
 
   scoreElement.textContent = sessionStarted ? String(state.score) : "0";
   highScoreElement.textContent = String(displayedBestScore);
   if (bestAiCountElement) {
     bestAiCountElement.textContent = String(displayedBestRogueCount);
   }
-  rogueStatusElement.textContent = `${activeRogueCount}/${configuredRogueCount}`;
+  if (bestDifficultyElement) {
+    bestDifficultyElement.textContent = toDifficultyLabel(displayedBestDifficulty);
+  }
+  rogueStatusElement.textContent = `${activeRogueCount}/${runRogueCount}`;
 
   startButton.textContent = sessionStarted ? "Apply & Restart" : "Start Game";
   pauseButton.textContent = state.paused ? "Resume" : "Pause";

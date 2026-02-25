@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.4.0`
+Current version: `0.4.1`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -44,6 +44,7 @@ src/
 
 ## Patch Notes
 
+- `v0.4.1`: locked run-specific difficulty and AI count at `Start Game` so tick speed and score persistence stay bound to the active run; prevented game-over score upsert from rerunning on setup edits; and clarified best-score HUD/modal text by including difficulty.
 - `v0.4.0`: added four difficulty modes (Easy, Medium, Hard, Story) with per-difficulty high score tracking. Story mode progressively increases speed as you score. Replaced fixed `setInterval` with dynamic `setTimeout` chain for variable tick rates. Added legacy score migration.
 - `v0.3.2`: internal refactoring and performance improvements — consolidated duplicate utilities (`toCellKey`, `clampIntRange`), eliminated redundant DOM rebuilds in score panel, and removed wasted idle-tick work.
 - `v0.3.1`: added persistent per-AI best score tracking with localStorage, plus a “Best Scores by AI” panel toggle.
@@ -94,11 +95,16 @@ http://localhost:4173
 ## Scripts
 
 - `npm run dev`: starts a static server on port `4173`
-- `npm test`: runs logic tests in `tests/gameLogic.test.js`, `tests/rogueLogic.test.js`, `tests/shared.test.js`, `tests/highScoreLogic.test.js`, and `tests/difficultyConfig.test.js`
+- `npm test`: runs tests in `tests/appBehavior.test.js`, `tests/gameLogic.test.js`, `tests/rogueLogic.test.js`, `tests/shared.test.js`, `tests/highScoreLogic.test.js`, and `tests/difficultyConfig.test.js`
 
 ## Test Coverage (Core Logic)
 
-63 tests across five test files:
+66 tests across six test files:
+
+**App behavior** (`tests/appBehavior.test.js`):
+- Run difficulty remains locked for active tick timing and HUD best label
+- Run AI count remains locked during active gameplay
+- Game-over score summary does not change when modal setup selectors are edited
 
 **Shared utilities** (`tests/shared.test.js`):
 - `clampIntRange` clamping, truncation, and NaN handling
