@@ -22,13 +22,19 @@ import {
 } from "./rogueLogic.js";
 import {
   createDefaultHighScores,
-  getBestScoreForRogueCount,
+  getBestScore,
+  migrateHighScores,
   normalizeHighScores,
   toHighScoreRows,
-  upsertBestScoreForRogueCount
+  upsertBestScore
 } from "./highScoreLogic.js";
+import {
+  DEFAULT_DIFFICULTY,
+  DIFFICULTY_MODES,
+  getTickMs
+} from "./difficultyConfig.js";
 
-const TICK_MS = 140;
+const ALL_DIFFICULTIES = Object.values(DIFFICULTY_MODES);
 const DIRECTION_KEYS = {
   ArrowUp: "UP",
   ArrowDown: "DOWN",
@@ -47,6 +53,8 @@ const rogueStatusElement = document.getElementById("rogue-status");
 const statusElement = document.getElementById("status");
 const rogueCountSelect = document.getElementById("rogue-count");
 const modalRogueCountSelect = document.getElementById("modal-rogue-count");
+const difficultySelect = document.getElementById("difficulty");
+const modalDifficultySelect = document.getElementById("modal-difficulty");
 const startButton = document.getElementById("start-btn");
 const restartButton = document.getElementById("restart-btn");
 const pauseButton = document.getElementById("pause-btn");
@@ -282,18 +290,32 @@ function getGameOverMessage(reason) {
 }
 
 function loadHighScoresByRogueCount() {
-  const fallback = createDefaultHighScores(MAX_ROGUE_SNAKES);
+  const fallback = createDefaultHighScores(MAX_ROGUE_SNAKES, ALL_DIFFICULTIES);
 
   try {
     const stored = localStorage.getItem(HIGH_SCORES_STORAGE_KEY);
     if (stored) {
-      return normalizeHighScores(JSON.parse(stored), MAX_ROGUE_SNAKES);
+      const parsed = JSON.parse(stored);
+      const { highScores: migrated, didMigrate } = migrateHighScores(
+        parsed,
+        MAX_ROGUE_SNAKES,
+        DEFAULT_DIFFICULTY
+      );
+      const normalized = normalizeHighScores(migrated, MAX_ROGUE_SNAKES, ALL_DIFFICULTIES);
+      if (didMigrate) {
+        try {
+          localStorage.setItem(HIGH_SCORES_STORAGE_KEY, JSON.stringify(normalized));
+        } catch {
+          // localStorage unavailable
+        }
+      }
+      return normalized;
     }
 
     const legacyStored = localStorage.getItem(LEGACY_HIGH_SCORE_STORAGE_KEY);
     const legacyScore = Number.parseInt(legacyStored, 10);
     if (Number.isFinite(legacyScore) && legacyScore > 0) {
-      fallback["0"] = legacyScore;
+      fallback[`0:${DEFAULT_DIFFICULTY}`] = legacyScore;
     }
   } catch {
     return fallback;
@@ -317,13 +339,13 @@ function getDisplayedBestRogueCount() {
   return selectedRogueCount;
 }
 
-function renderHighScoreRows(activeRogueCount) {
+function renderHighScoreRows(activeRogueCount, difficulty) {
   if (!scoresListElement) {
     return;
   }
 
-  const rows = toHighScoreRows(highScoresByRogueCount, MAX_ROGUE_SNAKES);
-  const fingerprint = `${activeRogueCount}:${rows.map((r) => r.bestScore).join(",")}`;
+  const rows = toHighScoreRows(highScoresByRogueCount, difficulty, MAX_ROGUE_SNAKES);
+  const fingerprint = `${difficulty}:${activeRogueCount}:${rows.map((r) => r.bestScore).join(",")}`;
 
   if (fingerprint === lastHighScoreFingerprint) {
     return;
@@ -353,6 +375,7 @@ let state = createInitialState();
 let rogues = [];
 let configuredRogueCount = 0;
 let selectedRogueCount = 0;
+let selectedDifficulty = DEFAULT_DIFFICULTY;
 let sessionStarted = false;
 let highScoresByRogueCount = loadHighScoresByRogueCount();
 let gameOverSummary = null;
@@ -422,6 +445,22 @@ function readModalConfiguredRogueCount() {
   return setSelectedRogueCount(
     Number.parseInt(modalRogueCountSelect.value, 10)
   );
+}
+
+function setSelectedDifficulty(value) {
+  const validated = ALL_DIFFICULTIES.includes(value) ? value : DEFAULT_DIFFICULTY;
+  selectedDifficulty = validated;
+  difficultySelect.value = validated;
+  modalDifficultySelect.value = validated;
+  return validated;
+}
+
+function readConfiguredDifficulty() {
+  return setSelectedDifficulty(difficultySelect.value);
+}
+
+function readModalConfiguredDifficulty() {
+  return setSelectedDifficulty(modalDifficultySelect.value);
 }
 
 function countActiveRogues() {
@@ -589,9 +628,63 @@ function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
   }
 }
 
-function startGame(rogueCount) {
+let tickTimeoutId = null;
+
+function getCurrentTickMs() {
+  return getTickMs(selectedDifficulty, state.score);
+}
+
+function gameTick() {
+  if (!sessionStarted) {
+    return;
+  }
+
+  const previousPlayerHead = state.snake[0] ? { ...state.snake[0] } : null;
+  const previousRogueHeads = new Map();
+  for (const rogue of rogues) {
+    if (!rogue.active || rogue.snake.length === 0) {
+      continue;
+    }
+
+    previousRogueHeads.set(rogue.id, { ...rogue.snake[0] });
+  }
+
+  const blockedPositions = getActiveRogueSegments(rogues);
+  const nextState = stepState(state, {
+    randomFn: Math.random,
+    blockedPositions
+  });
+  state = nextState;
+
+  if (!state.gameOver && !state.paused) {
+    tickRogueLifecycle();
+    resolveRogueCollisions(previousPlayerHead, previousRogueHeads);
+  }
+
+  render();
+}
+
+function scheduleTick() {
+  tickTimeoutId = setTimeout(() => {
+    gameTick();
+    if (sessionStarted && !state.gameOver) {
+      scheduleTick();
+    }
+  }, getCurrentTickMs());
+}
+
+function restartTickLoop() {
+  if (tickTimeoutId !== null) {
+    clearTimeout(tickTimeoutId);
+    tickTimeoutId = null;
+  }
+  scheduleTick();
+}
+
+function startGame(rogueCount, difficulty) {
   configuredRogueCount = clampRogueCount(rogueCount);
   setSelectedRogueCount(configuredRogueCount);
+  setSelectedDifficulty(difficulty);
   highScoresByRogueCount = loadHighScoresByRogueCount();
   gameOverSummary = null;
   lastHighScoreFingerprint = "";
@@ -605,6 +698,7 @@ function startGame(rogueCount) {
     }
   }
 
+  restartTickLoop();
   render();
 }
 
@@ -646,13 +740,16 @@ function render() {
     if (
       !gameOverSummary ||
       gameOverSummary.score !== state.score ||
-      gameOverSummary.rogueCount !== configuredRogueCount
+      gameOverSummary.rogueCount !== configuredRogueCount ||
+      gameOverSummary.difficulty !== selectedDifficulty
     ) {
-      const updatedScores = upsertBestScoreForRogueCount(
+      const updatedScores = upsertBestScore(
         highScoresByRogueCount,
         configuredRogueCount,
+        selectedDifficulty,
         state.score,
-        MAX_ROGUE_SNAKES
+        MAX_ROGUE_SNAKES,
+        ALL_DIFFICULTIES
       );
       highScoresByRogueCount = updatedScores.highScores;
       if (updatedScores.isNewRecord) {
@@ -662,6 +759,7 @@ function render() {
       gameOverSummary = {
         score: state.score,
         rogueCount: configuredRogueCount,
+        difficulty: selectedDifficulty,
         bestScore: updatedScores.bestScore,
         isNewRecord: updatedScores.isNewRecord
       };
@@ -684,7 +782,10 @@ function render() {
     if (state.paused) {
       statusElement.textContent = "Paused.";
     } else {
-      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${configuredRogueCount}.`;
+      const storySpeed = selectedDifficulty === DIFFICULTY_MODES.STORY
+        ? ` Speed: ${getCurrentTickMs()}ms.`
+        : "";
+      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${configuredRogueCount}.${storySpeed}`;
     }
   }
 
@@ -697,13 +798,14 @@ function render() {
   modalWasVisible = modalIsVisible;
 
   const displayedBestRogueCount = getDisplayedBestRogueCount();
-  const displayedBestScore = getBestScoreForRogueCount(
+  const displayedBestScore = getBestScore(
     highScoresByRogueCount,
     displayedBestRogueCount,
+    selectedDifficulty,
     MAX_ROGUE_SNAKES
   );
 
-  renderHighScoreRows(displayedBestRogueCount);
+  renderHighScoreRows(displayedBestRogueCount, selectedDifficulty);
 
   scoreElement.textContent = sessionStarted ? String(state.score) : "0";
   highScoreElement.textContent = String(displayedBestScore);
@@ -720,18 +822,18 @@ function render() {
 
 function restartGame() {
   if (!sessionStarted) {
-    startGame(readConfiguredRogueCount());
+    startGame(readConfiguredRogueCount(), readConfiguredDifficulty());
     return;
   }
 
-  startGame(selectedRogueCount);
+  startGame(selectedRogueCount, selectedDifficulty);
 }
 
 window.addEventListener("keydown", (event) => {
   if (!sessionStarted) {
     if (event.code === "KeyR") {
       event.preventDefault();
-      startGame(readConfiguredRogueCount());
+      startGame(readConfiguredRogueCount(), readConfiguredDifficulty());
     }
     return;
   }
@@ -791,7 +893,7 @@ scoresToggleButton?.addEventListener("click", () => {
 });
 
 startButton.addEventListener("click", () => {
-  startGame(readConfiguredRogueCount());
+  startGame(readConfiguredRogueCount(), readConfiguredDifficulty());
 });
 
 rogueCountSelect.addEventListener("change", () => {
@@ -805,40 +907,23 @@ modalRogueCountSelect.addEventListener("change", () => {
 });
 
 modalRestartButton.addEventListener("click", () => {
-  startGame(readModalConfiguredRogueCount());
+  startGame(readModalConfiguredRogueCount(), readModalConfiguredDifficulty());
 });
 
-setInterval(() => {
-  if (!sessionStarted) {
-    return;
-  }
-
-  const previousPlayerHead = state.snake[0] ? { ...state.snake[0] } : null;
-  const previousRogueHeads = new Map();
-  for (const rogue of rogues) {
-    if (!rogue.active || rogue.snake.length === 0) {
-      continue;
-    }
-
-    previousRogueHeads.set(rogue.id, { ...rogue.snake[0] });
-  }
-
-  const blockedPositions = getActiveRogueSegments(rogues);
-  const nextState = stepState(state, {
-    randomFn: Math.random,
-    blockedPositions
-  });
-  state = nextState;
-
-  if (!state.gameOver && !state.paused) {
-    tickRogueLifecycle();
-    resolveRogueCollisions(previousPlayerHead, previousRogueHeads);
-  }
-
+difficultySelect.addEventListener("change", () => {
+  readConfiguredDifficulty();
+  lastHighScoreFingerprint = "";
   render();
-}, TICK_MS);
+});
+
+modalDifficultySelect.addEventListener("change", () => {
+  readModalConfiguredDifficulty();
+  lastHighScoreFingerprint = "";
+  render();
+});
 
 setSelectedRogueCount(0);
+setSelectedDifficulty(DEFAULT_DIFFICULTY);
 setControlsVisible(false);
 setScoresPanelVisible(false);
 render();
