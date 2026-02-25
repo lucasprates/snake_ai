@@ -322,6 +322,13 @@ function renderHighScoreRows(activeRogueCount) {
   }
 
   const rows = toHighScoreRows(highScoresByRogueCount, MAX_ROGUE_SNAKES);
+  const fingerprint = `${activeRogueCount}:${rows.map((r) => r.bestScore).join(",")}`;
+
+  if (fingerprint === lastHighScoreFingerprint) {
+    return;
+  }
+
+  lastHighScoreFingerprint = fingerprint;
   scoresListElement.textContent = "";
 
   for (const row of rows) {
@@ -350,6 +357,7 @@ let highScoresByRogueCount = loadHighScoresByRogueCount();
 let gameOverSummary = null;
 let controlsVisible = false;
 let scoresPanelVisible = false;
+let lastHighScoreFingerprint = "";
 
 function setControlsVisible(visible) {
   controlsVisible = visible;
@@ -487,16 +495,12 @@ function respawnFoodWithRogues() {
 
   state = {
     ...state,
-    food: nextFood
-  };
-
-  if (nextFood === null) {
-    state = {
-      ...state,
+    food: nextFood,
+    ...(nextFood === null && {
       gameOver: true,
       endReason: END_REASONS.FILLED_BOARD
-    };
-  }
+    })
+  };
 }
 
 function tickRogueLifecycle() {
@@ -578,6 +582,7 @@ function startGame(rogueCount) {
   setSelectedRogueCount(configuredRogueCount);
   highScoresByRogueCount = loadHighScoresByRogueCount();
   gameOverSummary = null;
+  lastHighScoreFingerprint = "";
   state = createInitialState();
   rogues = createRogueSlots(configuredRogueCount);
   sessionStarted = true;
@@ -593,6 +598,7 @@ function startGame(rogueCount) {
 
 function render() {
   resetCellClasses();
+  const activeRogueCount = countActiveRogues();
 
   if (sessionStarted) {
     for (const rogue of rogues) {
@@ -663,7 +669,7 @@ function render() {
     if (state.paused) {
       statusElement.textContent = "Paused.";
     } else {
-      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${countActiveRogues()}/${configuredRogueCount}.`;
+      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${configuredRogueCount}.`;
     }
   }
 
@@ -681,7 +687,7 @@ function render() {
   if (bestAiCountElement) {
     bestAiCountElement.textContent = String(displayedBestRogueCount);
   }
-  rogueStatusElement.textContent = `${countActiveRogues()}/${configuredRogueCount}`;
+  rogueStatusElement.textContent = `${activeRogueCount}/${configuredRogueCount}`;
 
   startButton.textContent = sessionStarted ? "Apply & Restart" : "Start Game";
   pauseButton.textContent = state.paused ? "Resume" : "Pause";
@@ -781,7 +787,6 @@ modalRestartButton.addEventListener("click", () => {
 
 setInterval(() => {
   if (!sessionStarted) {
-    render();
     return;
   }
 

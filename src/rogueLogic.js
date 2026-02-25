@@ -4,9 +4,11 @@ import {
   positionsEqual
 } from "./gameLogic.js";
 import {
+  clampIntRange,
   clampRandom,
   cloneSnake,
-  OPPOSITE_DIRECTIONS
+  OPPOSITE_DIRECTIONS,
+  toCellKey
 } from "./shared.js";
 
 export const MAX_ROGUE_SNAKES = 5;
@@ -65,26 +67,10 @@ function getCornerSpawnEntries(width, height) {
   ];
 }
 
-export function toCellKey(position) {
-  return `${position.x},${position.y}`;
-}
+export { toCellKey } from "./shared.js";
 
 export function clampRogueCount(value) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  const integerValue = Math.trunc(value);
-
-  if (integerValue < 0) {
-    return 0;
-  }
-
-  if (integerValue > MAX_ROGUE_SNAKES) {
-    return MAX_ROGUE_SNAKES;
-  }
-
-  return integerValue;
+  return clampIntRange(value, 0, MAX_ROGUE_SNAKES);
 }
 
 export function createRogueSlots(count, randomFn = Math.random) {

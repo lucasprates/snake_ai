@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.3.1`
+Current version: `0.3.2`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -27,7 +27,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 
 ```
 src/
-  shared.js       Shared utilities (clampRandom, cloneSnake, OPPOSITE_DIRECTIONS)
+  shared.js       Shared utilities (clampIntRange, clampRandom, toCellKey, cloneSnake, OPPOSITE_DIRECTIONS)
   highScoreLogic.js Pure score logic: per-AI best score normalization and updates
   gameLogic.js    Pure game state: movement, collisions, food, scoring
   rogueLogic.js   AI snake behavior: spawning, pathfinding, rogue collisions
@@ -42,6 +42,7 @@ src/
 
 ## Patch Notes
 
+- `v0.3.2`: internal refactoring and performance improvements — consolidated duplicate utilities (`toCellKey`, `clampIntRange`), eliminated redundant DOM rebuilds in score panel, and removed wasted idle-tick work.
 - `v0.3.1`: added persistent per-AI best score tracking with localStorage, plus a “Best Scores by AI” panel toggle.
 - `v0.3.0`: upgraded board rendering with 2D sprite visuals for player snake (green head/body/tail), AI snakes (red/blue themes), animated food, and textured background/frame styling.
 - `v0.2.1`: fixed rogue spawn rendering edge case where emerging off-board segments could appear on the opposite side of the grid.
@@ -94,9 +95,11 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-48 tests across four test files:
+50 tests across four test files:
 
 **Shared utilities** (`tests/shared.test.js`):
+- `clampIntRange` clamping, truncation, and NaN handling
+- `toCellKey` coordinate serialization
 - `clampRandom` edge cases (NaN, negative, >= 1, valid pass-through)
 - `cloneSnake` deep copy independence
 - `OPPOSITE_DIRECTIONS` mapping correctness

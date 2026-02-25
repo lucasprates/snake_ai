@@ -2,9 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  clampIntRange,
   clampRandom,
   cloneSnake,
-  OPPOSITE_DIRECTIONS
+  OPPOSITE_DIRECTIONS,
+  toCellKey
 } from "../src/shared.js";
 
 test("clampRandom returns 0 for NaN", () => {
@@ -41,6 +43,19 @@ test("cloneSnake creates a deep copy", () => {
 
   clone[0].x = 99;
   assert.equal(original[0].x, 1);
+});
+
+test("clampIntRange clamps to min/max and handles NaN", () => {
+  assert.equal(clampIntRange(3, 0, 5), 3);
+  assert.equal(clampIntRange(-1, 0, 5), 0);
+  assert.equal(clampIntRange(10, 0, 5), 5);
+  assert.equal(clampIntRange(NaN, 0, 5), 0);
+  assert.equal(clampIntRange(2.9, 0, 5), 2);
+});
+
+test("toCellKey returns comma-separated coordinates", () => {
+  assert.equal(toCellKey({ x: 3, y: 7 }), "3,7");
+  assert.equal(toCellKey({ x: 0, y: 0 }), "0,0");
 });
 
 test("OPPOSITE_DIRECTIONS maps all four directions", () => {

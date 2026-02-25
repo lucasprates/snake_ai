@@ -1,28 +1,11 @@
+import { clampIntRange } from "./shared.js";
+
 function clampRogueCount(value, maxRogueCount) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  const integerValue = Math.trunc(value);
-
-  if (integerValue < 0) {
-    return 0;
-  }
-
-  if (integerValue > maxRogueCount) {
-    return maxRogueCount;
-  }
-
-  return integerValue;
+  return clampIntRange(value, 0, maxRogueCount);
 }
 
 function sanitizeScore(value) {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  const integerValue = Math.trunc(value);
-  return integerValue > 0 ? integerValue : 0;
+  return clampIntRange(value, 0, Number.MAX_SAFE_INTEGER);
 }
 
 export function createDefaultHighScores(maxRogueCount = 5) {
