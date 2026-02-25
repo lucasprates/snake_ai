@@ -383,6 +383,7 @@ button:disabled {
 .modal {
   position: fixed;
   inset: 0;
+  z-index: 10;
   background: rgba(12, 25, 17, 0.48);
   display: grid;
   place-items: center;

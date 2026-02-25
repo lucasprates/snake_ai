@@ -9,7 +9,7 @@
   <body>
     <main class="app">
       <section class="hud">
-        <h1>Snake <span class="version">v0.3.1</span></h1>
+        <h1>Snake <span class="version">v0.4.0</span></h1>
         <div class="hud-meta">
           <p class="score">Score: <span id="score">0</span></p>
           <p class="high-score">
@@ -28,6 +28,13 @@
           <option value="3">3</option>
           <option value="4">4</option>
           <option value="5">5</option>
+        </select>
+        <label for="difficulty">Difficulty</label>
+        <select id="difficulty" name="difficulty">
+          <option value="EASY">Easy</option>
+          <option value="MEDIUM" selected>Medium</option>
+          <option value="HARD">Hard</option>
+          <option value="STORY">Story</option>
         </select>
         <button id="start-btn" type="button">Start Game</button>
       </section>
@@ -103,6 +110,15 @@
             <option value="3">3</option>
             <option value="4">4</option>
             <option value="5">5</option>
+          </select>
+        </section>
+        <section class="setup modal-setup" aria-label="Game over difficulty">
+          <label for="modal-difficulty">Difficulty</label>
+          <select id="modal-difficulty" name="modal-difficulty">
+            <option value="EASY">Easy</option>
+            <option value="MEDIUM" selected>Medium</option>
+            <option value="HARD">Hard</option>
+            <option value="STORY">Story</option>
           </select>
         </section>
         <button id="modal-restart-btn" type="button">Play Again</button>

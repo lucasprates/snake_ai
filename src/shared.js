@@ -17,6 +17,28 @@ export function clampRandom(value) {
   return value;
 }
 
+export function clampIntRange(value, min, max) {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  const integerValue = Math.trunc(value);
+
+  if (integerValue < min) {
+    return min;
+  }
+
+  if (integerValue > max) {
+    return max;
+  }
+
+  return integerValue;
+}
+
+export function toCellKey(position) {
+  return `${position.x},${position.y}`;
+}
+
 export function cloneSnake(snake) {
   return snake.map((part) => ({ x: part.x, y: part.y }));
 }

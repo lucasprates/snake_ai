@@ -1,7 +1,8 @@
 import {
   clampRandom,
   cloneSnake,
-  OPPOSITE_DIRECTIONS
+  OPPOSITE_DIRECTIONS,
+  toCellKey
 } from "./shared.js";
 
 export const DEFAULT_GRID_WIDTH = 20;
@@ -20,10 +21,6 @@ export const END_REASONS = {
   HIT_ROGUE: "HIT_ROGUE",
   FILLED_BOARD: "FILLED_BOARD"
 };
-
-function toKey(position) {
-  return `${position.x},${position.y}`;
-}
 
 function createInitialSnake(width, height) {
   const centerX = Math.floor(width / 2);
@@ -56,16 +53,16 @@ export function placeFood(
   randomFn = Math.random,
   blockedPositions = []
 ) {
-  const occupied = new Set(snake.map(toKey));
+  const occupied = new Set(snake.map(toCellKey));
   for (const blocked of blockedPositions) {
-    occupied.add(toKey(blocked));
+    occupied.add(toCellKey(blocked));
   }
   const available = [];
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const cell = { x, y };
-      if (!occupied.has(toKey(cell))) {
+      if (!occupied.has(toCellKey(cell))) {
         available.push(cell);
       }
     }
