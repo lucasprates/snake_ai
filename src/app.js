@@ -655,6 +655,13 @@ function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
 
 let tickTimeoutId = null;
 
+function stopTickLoop() {
+  if (tickTimeoutId !== null) {
+    clearTimeout(tickTimeoutId);
+    tickTimeoutId = null;
+  }
+}
+
 function getCurrentTickMs() {
   return getTickMs(runDifficulty, state.score);
 }
@@ -690,19 +697,24 @@ function gameTick() {
 }
 
 function scheduleTick() {
+  if (
+    tickTimeoutId !== null ||
+    !sessionStarted ||
+    state.gameOver ||
+    state.paused
+  ) {
+    return;
+  }
+
   tickTimeoutId = setTimeout(() => {
+    tickTimeoutId = null;
     gameTick();
-    if (sessionStarted && !state.gameOver) {
-      scheduleTick();
-    }
+    scheduleTick();
   }, getCurrentTickMs());
 }
 
 function restartTickLoop() {
-  if (tickTimeoutId !== null) {
-    clearTimeout(tickTimeoutId);
-    tickTimeoutId = null;
-  }
+  stopTickLoop();
   scheduleTick();
 }
 
@@ -877,6 +889,11 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Space" && !state.gameOver) {
     event.preventDefault();
     state = togglePause(state);
+    if (state.paused) {
+      stopTickLoop();
+    } else {
+      scheduleTick();
+    }
     render();
     return;
   }
@@ -906,6 +923,11 @@ pauseButton.addEventListener("click", () => {
   }
 
   state = togglePause(state);
+  if (state.paused) {
+    stopTickLoop();
+  } else {
+    scheduleTick();
+  }
   render();
 });
 

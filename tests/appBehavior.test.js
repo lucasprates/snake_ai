@@ -355,6 +355,32 @@ test("run rogue count stays locked during an active game", async (t) => {
   assert.match(rogueStatus.textContent, /\/1$/);
 });
 
+test("pausing stops scheduled ticks until resumed", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const pauseButton = env.document.getElementById("pause-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  assert.equal(env.timers.firstDelay(), 160);
+
+  pauseButton.dispatch("click");
+  assert.equal(env.timers.firstDelay(), null);
+
+  pauseButton.dispatch("click");
+  assert.equal(env.timers.firstDelay(), 160);
+});
+
 test("game-over score summary does not change after modal setup edits", async (t) => {
   const env = installAppEnvironment();
   t.after(() => {
