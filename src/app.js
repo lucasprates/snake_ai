@@ -579,7 +579,62 @@ function respawnFoodWithRogues() {
   };
 }
 
+function addSnakeToOccupancy(occupancyByCell, snake) {
+  for (const part of snake) {
+    const key = toCellKey(part);
+    occupancyByCell.set(key, (occupancyByCell.get(key) ?? 0) + 1);
+  }
+}
+
+function removeSnakeFromOccupancy(occupancyByCell, snake) {
+  for (const part of snake) {
+    const key = toCellKey(part);
+    const nextCount = (occupancyByCell.get(key) ?? 0) - 1;
+    if (nextCount <= 0) {
+      occupancyByCell.delete(key);
+    } else {
+      occupancyByCell.set(key, nextCount);
+    }
+  }
+}
+
+function createRogueOccupancyByCell() {
+  const occupancyByCell = new Map();
+
+  for (const rogue of rogues) {
+    if (!rogue.active) {
+      continue;
+    }
+
+    addSnakeToOccupancy(occupancyByCell, rogue.snake);
+  }
+
+  return occupancyByCell;
+}
+
+function createOtherRogueBlockedLookup(occupancyByCell, snake) {
+  const ownCells = new Set(snake.map(toCellKey));
+
+  return {
+    has(cellKey) {
+      const occupancyCount = occupancyByCell.get(cellKey) ?? 0;
+
+      if (occupancyCount === 0) {
+        return false;
+      }
+
+      if (!ownCells.has(cellKey)) {
+        return true;
+      }
+
+      return occupancyCount > 1;
+    }
+  };
+}
+
 function tickRogueLifecycle() {
+  const occupancyByCell = createRogueOccupancyByCell();
+
   for (let index = 0; index < rogues.length; index += 1) {
     const rogue = rogues[index];
 
@@ -593,11 +648,15 @@ function tickRogueLifecycle() {
       }
 
       spawnRogueAtIndex(index);
+      if (rogues[index].active) {
+        addSnakeToOccupancy(occupancyByCell, rogues[index].snake);
+      }
       continue;
     }
 
-    const blockedCells = new Set(
-      getActiveRogueSegments(rogues, rogue.id).map(toCellKey)
+    const blockedCells = createOtherRogueBlockedLookup(
+      occupancyByCell,
+      rogue.snake
     );
     const moved = moveRogueSnake(
       rogue,
@@ -608,10 +667,13 @@ function tickRogueLifecycle() {
     );
 
     if (!moved) {
+      removeSnakeFromOccupancy(occupancyByCell, rogue.snake);
       defeatRogueAtIndex(index);
       continue;
     }
 
+    removeSnakeFromOccupancy(occupancyByCell, rogue.snake);
+    addSnakeToOccupancy(occupancyByCell, moved.rogue.snake);
     rogues[index] = moved.rogue;
 
     if (moved.ateFood) {
