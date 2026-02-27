@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.5.1`
+Current version: `0.5.2`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -18,6 +18,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 - Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
 - Game-over modal includes AI count and difficulty selectors synced with the main setup
 - Persistent best-score tracking per AI count and difficulty via localStorage (survives page reloads and server restarts)
+- Best-scores panel with independent difficulty filter (Story/Easy/Medium/Hard), defaulting to the active run/setup difficulty on open
 - Game over on wall collision, self collision, or rogue collision
 - Win/end state when the board is fully filled
 - Restart and pause/resume controls
@@ -44,6 +45,7 @@ src/
 
 ## Patch Notes
 
+- `v0.5.2`: refreshed Best Scores UX with `Show/Close Best Scores` wording and a dedicated difficulty filter inside the panel that defaults to the active run/setup difficulty on open while remaining independent from game difficulty selection.
 - `v0.5.1`: optimized food spawning by using a two-pass free-cell selection and an explicit occupied-cell set (snake + blocked positions), avoiding large temporary available-cell arrays.
 - `v0.5.0`: optimized rogue movement occupancy checks by replacing per-rogue blocked-cell rebuilds with a shared per-tick occupancy map updated incrementally.
 - `v0.4.2`: stopped scheduling idle game ticks while paused (and resumed scheduling on unpause), reducing unnecessary timer/render work.
@@ -91,7 +93,7 @@ http://localhost:4173
 - At game over, change AI count or difficulty in modal and press `Play Again` to restart with new values
 - Move: `Arrow Up/Down/Left/Right` or `W/A/S/D`
 - Optional mouse controls on desktop: toggle `Show On-Screen Controls`
-- View per-AI best-score table: toggle `Show Best Scores by AI`
+- View per-AI best-score table: toggle `Show Best Scores` / `Close Best Scores`, then choose panel difficulty from the dropdown
 - Pause/Resume: `Space` or `Pause` button
 - Restart: `R`, `Restart` button, or modal `Play Again`
 

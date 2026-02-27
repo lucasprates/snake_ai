@@ -158,6 +158,7 @@ class DocumentMock {
     this.register("scores-toggle-btn", "button");
     const scoresPanel = this.register("scores-panel");
     scoresPanel.className = "scores-panel hidden";
+    this.register("scores-difficulty", "select").value = "MEDIUM";
     this.register("scores-list", "ul");
 
     const modal = this.register("game-over-modal");
@@ -379,6 +380,39 @@ test("pausing stops scheduled ticks until resumed", async (t) => {
 
   pauseButton.dispatch("click");
   assert.equal(env.timers.firstDelay(), 160);
+});
+
+test("scores panel difficulty mirrors active run on open but stays independent", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const scoresToggleButton = env.document.getElementById("scores-toggle-btn");
+  const scoresDifficultySelect = env.document.getElementById("scores-difficulty");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const bestDifficulty = env.document.getElementById("best-difficulty");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "EASY";
+  startButton.dispatch("click");
+
+  scoresToggleButton.dispatch("click");
+  assert.equal(scoresDifficultySelect.value, "EASY");
+  assert.equal(bestDifficulty.textContent, "Easy");
+
+  scoresDifficultySelect.value = "HARD";
+  scoresDifficultySelect.dispatch("change");
+  assert.equal(bestDifficulty.textContent, "Easy");
+  assert.equal(difficultySelect.value, "EASY");
+
+  scoresToggleButton.dispatch("click");
+  scoresToggleButton.dispatch("click");
+  assert.equal(scoresDifficultySelect.value, "EASY");
 });
 
 test("game-over score summary does not change after modal setup edits", async (t) => {

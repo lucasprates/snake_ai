@@ -9,7 +9,7 @@
   <body>
     <main class="app">
       <section class="hud">
-        <h1>Snake <span class="version">v0.5.1</span></h1>
+        <h1>Snake <span class="version">v0.5.2</span></h1>
         <div class="hud-meta">
           <p class="score">Score: <span id="score">0</span></p>
           <p class="high-score">
@@ -57,7 +57,7 @@
         <button id="pause-btn" type="button">Pause</button>
         <button id="restart-btn" type="button">Restart</button>
         <button id="scores-toggle-btn" type="button" aria-pressed="false">
-          Show Best Scores by AI
+          Show Best Scores
         </button>
         <button
           id="controls-toggle-btn"
@@ -71,9 +71,20 @@
       <section
         id="scores-panel"
         class="scores-panel hidden"
-        aria-label="Best scores by AI count"
+        aria-label="Best scores"
       >
-        <h2>Best Scores by AI Count</h2>
+        <div class="scores-panel-head">
+          <h2>Best Scores</h2>
+          <label class="scores-filter" for="scores-difficulty">
+            Difficulty
+            <select id="scores-difficulty" name="scores-difficulty">
+              <option value="STORY">Story</option>
+              <option value="EASY">Easy</option>
+              <option value="MEDIUM" selected>Medium</option>
+              <option value="HARD">Hard</option>
+            </select>
+          </label>
+        </div>
         <ul id="scores-list" class="scores-list"></ul>
       </section>
 

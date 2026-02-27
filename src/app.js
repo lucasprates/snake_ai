@@ -77,6 +77,7 @@ const highScoreElement = document.getElementById("high-score");
 const scoresToggleButton = document.getElementById("scores-toggle-btn");
 const scoresPanelElement = document.getElementById("scores-panel");
 const scoresListElement = document.getElementById("scores-list");
+const scoresDifficultySelect = document.getElementById("scores-difficulty");
 const HIGH_SCORES_STORAGE_KEY = "snake_highScoresByAiCount";
 const LEGACY_HIGH_SCORE_STORAGE_KEY = "snake_highScore";
 
@@ -406,6 +407,7 @@ let gameOverSummary = null;
 let didPersistGameOverScore = false;
 let controlsVisible = false;
 let scoresPanelVisible = false;
+let scoresViewDifficulty = DEFAULT_DIFFICULTY;
 let lastHighScoreFingerprint = "";
 let modalWasVisible = false;
 
@@ -425,6 +427,9 @@ function setControlsVisible(visible) {
 
 function setScoresPanelVisible(visible) {
   scoresPanelVisible = visible;
+  if (visible) {
+    setScoresViewDifficulty(getDisplayedBestDifficulty());
+  }
   scoresPanelElement?.classList.toggle("hidden", !visible);
 
   if (!scoresToggleButton) {
@@ -432,8 +437,8 @@ function setScoresPanelVisible(visible) {
   }
 
   scoresToggleButton.textContent = visible
-    ? "Hide Best Scores by AI"
-    : "Show Best Scores by AI";
+    ? "Close Best Scores"
+    : "Show Best Scores";
   scoresToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
 }
 
@@ -477,6 +482,16 @@ function setSelectedDifficulty(value) {
   selectedDifficulty = validated;
   difficultySelect.value = validated;
   modalDifficultySelect.value = validated;
+  return validated;
+}
+
+function setScoresViewDifficulty(value) {
+  const validated = ALL_DIFFICULTIES.includes(value) ? value : DEFAULT_DIFFICULTY;
+  scoresViewDifficulty = validated;
+  if (scoresDifficultySelect) {
+    scoresDifficultySelect.value = validated;
+  }
+  lastHighScoreFingerprint = "";
   return validated;
 }
 
@@ -798,6 +813,10 @@ function startGame(rogueCount, difficulty) {
     }
   }
 
+  if (scoresPanelVisible) {
+    setScoresViewDifficulty(runDifficulty);
+  }
+
   restartTickLoop();
   render();
 }
@@ -904,8 +923,11 @@ function render() {
     displayedBestDifficulty,
     MAX_ROGUE_SNAKES
   );
+  const scoresPanelDifficulty = scoresPanelVisible
+    ? scoresViewDifficulty
+    : displayedBestDifficulty;
 
-  renderHighScoreRows(displayedBestRogueCount, displayedBestDifficulty);
+  renderHighScoreRows(displayedBestRogueCount, scoresPanelDifficulty);
 
   scoreElement.textContent = sessionStarted ? String(state.score) : "0";
   highScoreElement.textContent = String(displayedBestScore);
@@ -1005,6 +1027,11 @@ scoresToggleButton?.addEventListener("click", () => {
   setScoresPanelVisible(!scoresPanelVisible);
 });
 
+scoresDifficultySelect?.addEventListener("change", () => {
+  setScoresViewDifficulty(scoresDifficultySelect.value);
+  render();
+});
+
 startButton.addEventListener("click", () => {
   startGame(readConfiguredRogueCount(), readConfiguredDifficulty());
 });
@@ -1025,6 +1052,9 @@ modalRestartButton.addEventListener("click", () => {
 
 difficultySelect.addEventListener("change", () => {
   readConfiguredDifficulty();
+  if (scoresPanelVisible && !sessionStarted) {
+    setScoresViewDifficulty(selectedDifficulty);
+  }
   lastHighScoreFingerprint = "";
   render();
 });
