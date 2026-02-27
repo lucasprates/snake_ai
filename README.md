@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.5.0`
+Current version: `0.5.1`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -44,6 +44,7 @@ src/
 
 ## Patch Notes
 
+- `v0.5.1`: optimized food spawning by using a two-pass free-cell selection and an explicit occupied-cell set (snake + blocked positions), avoiding large temporary available-cell arrays.
 - `v0.5.0`: optimized rogue movement occupancy checks by replacing per-rogue blocked-cell rebuilds with a shared per-tick occupancy map updated incrementally.
 - `v0.4.2`: stopped scheduling idle game ticks while paused (and resumed scheduling on unpause), reducing unnecessary timer/render work.
 - `v0.4.1`: locked run-specific difficulty and AI count at `Start Game` so tick speed and score persistence stay bound to the active run; prevented game-over score upsert from rerunning on setup edits; and clarified best-score HUD/modal text by including difficulty.

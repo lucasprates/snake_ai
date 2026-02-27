@@ -53,28 +53,54 @@ export function placeFood(
   randomFn = Math.random,
   blockedPositions = []
 ) {
-  const occupied = new Set(snake.map(toCellKey));
-  for (const blocked of blockedPositions) {
-    occupied.add(toCellKey(blocked));
+  const occupied = new Set();
+
+  for (const part of snake) {
+    if (isInsideBoard(part, width, height)) {
+      occupied.add(toCellKey(part));
+    }
   }
-  const available = [];
+
+  for (const blocked of blockedPositions) {
+    if (isInsideBoard(blocked, width, height)) {
+      occupied.add(toCellKey(blocked));
+    }
+  }
+
+  let availableCount = 0;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const cell = { x, y };
-      if (!occupied.has(toCellKey(cell))) {
-        available.push(cell);
+      const cellKey = `${x},${y}`;
+      if (!occupied.has(cellKey)) {
+        availableCount += 1;
       }
     }
   }
 
-  if (available.length === 0) {
+  if (availableCount === 0) {
     return null;
   }
 
   const randomValue = clampRandom(randomFn());
-  const index = Math.floor(randomValue * available.length);
-  return available[index];
+  let targetIndex = Math.floor(randomValue * availableCount);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const cellKey = `${x},${y}`;
+      if (occupied.has(cellKey)) {
+        continue;
+      }
+
+      if (targetIndex === 0) {
+        return { x, y };
+      }
+
+      targetIndex -= 1;
+    }
+  }
+
+  return null;
 }
 
 export function createInitialState(options = {}) {
