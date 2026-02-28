@@ -93,3 +93,26 @@ test("migrateHighScores skips already-migrated scores", () => {
   assert.equal(didMigrate, false);
   assert.equal(highScores["0:MEDIUM"], 5);
 });
+
+test("normalizeHighScores returns defaults for null input", () => {
+  const result = normalizeHighScores(null, 1, ["EASY", "HARD"]);
+  assert.deepEqual(result, {
+    "0:EASY": 0,
+    "1:EASY": 0,
+    "0:HARD": 0,
+    "1:HARD": 0
+  });
+});
+
+test("normalizeHighScores returns defaults for non-object input", () => {
+  const result = normalizeHighScores("invalid", 1, ["MEDIUM"]);
+  assert.deepEqual(result, {
+    "0:MEDIUM": 0,
+    "1:MEDIUM": 0
+  });
+});
+
+test("migrateHighScores returns empty object for null input", () => {
+  const result = migrateHighScores(null, 2, "MEDIUM");
+  assert.deepEqual(result, {});
+});

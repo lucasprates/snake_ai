@@ -497,3 +497,44 @@ test("rogue spawn returns null when all corners are occupied", () => {
   const rogue = spawnRogueSnake(1, 6, 6, occupiedCells, () => 0);
   assert.equal(rogue, null);
 });
+
+test("getActiveRogueSegments returns empty array for empty rogues", () => {
+  const segments = getActiveRogueSegments([]);
+  assert.deepEqual(segments, []);
+});
+
+test("multiple rogues hitting player simultaneously defeats all rogues and player", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      snake: [
+        { x: 5, y: 5 },
+        { x: 4, y: 5 },
+        { x: 3, y: 5 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      direction: "LEFT",
+      snake: [
+        { x: 5, y: 5 },
+        { x: 6, y: 5 },
+        { x: 7, y: 5 }
+      ]
+    }
+  ];
+
+  const playerSnake = [
+    { x: 5, y: 5 },
+    { x: 5, y: 6 },
+    { x: 5, y: 7 }
+  ];
+
+  const result = getRogueCollisionResult(rogues, playerSnake);
+
+  assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);
+  assert.equal(result.playerDefeated, true);
+});

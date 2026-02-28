@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.5.2`
+Current version: `0.5.3`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -45,6 +45,7 @@ src/
 
 ## Patch Notes
 
+- `v0.5.3`: fixed `setDirection` to check `pendingDirection` instead of committed `direction` for reverse-prevention, improving responsiveness for rapid multi-key inputs at high tick speeds (Hard/Story). Expanded test coverage from 68 to 87 tests with new cases for `positionsEqual`, `isInsideBoard`, `createInitialState` defaults, single-segment reversal, all four movement directions, `normalizeHighScores`/`migrateHighScores` null inputs, `clampRandom`/`clampIntRange` Infinity edge cases, empty rogue arrays, and simultaneous multi-rogue collisions.
 - `v0.5.2`: refreshed Best Scores UX with `Show/Close Best Scores` wording and a dedicated difficulty filter inside the panel that defaults to the active run/setup difficulty on open while remaining independent from game difficulty selection.
 - `v0.5.1`: optimized food spawning by using a two-pass free-cell selection and an explicit occupied-cell set (snake + blocked positions), avoiding large temporary available-cell arrays.
 - `v0.5.0`: optimized rogue movement occupancy checks by replacing per-rogue blocked-cell rebuilds with a shared per-tick occupancy map updated incrementally.
@@ -104,17 +105,19 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-66 tests across six test files:
+87 tests across six test files:
 
 **App behavior** (`tests/appBehavior.test.js`):
 - Run difficulty remains locked for active tick timing and HUD best label
 - Run AI count remains locked during active gameplay
+- Pausing stops scheduled ticks until resumed
+- Scores panel difficulty mirrors active run on open but stays independent
 - Game-over score summary does not change when modal setup selectors are edited
 
 **Shared utilities** (`tests/shared.test.js`):
-- `clampIntRange` clamping, truncation, and NaN handling
+- `clampIntRange` clamping, truncation, NaN, and Infinity handling
 - `toCellKey` coordinate serialization
-- `clampRandom` edge cases (NaN, negative, >= 1, valid pass-through)
+- `clampRandom` edge cases (NaN, negative, >= 1, Infinity, valid pass-through)
 - `cloneSnake` deep copy independence
 - `OPPOSITE_DIRECTIONS` mapping correctness
 
@@ -127,30 +130,39 @@ http://localhost:4173
 
 **Score logic** (`tests/highScoreLogic.test.js`):
 - Per-difficulty score map creation and normalization
+- Normalization with null and non-object inputs
 - Difficulty+AI-count-specific best retrieval
 - Record update behavior (new record vs no change)
 - Ordered row projection for the “Best Scores by AI” panel
 - Legacy key migration (`”0”` → `”0:MEDIUM”`) and skip for already-migrated scores
+- Migration with null input
 
 **Game logic** (`tests/gameLogic.test.js`):
-- Movement per tick
+- Movement per tick in all four directions (UP, DOWN, LEFT, RIGHT)
 - Growth + score increment when eating food
 - Wall collision game-over
 - Self collision game-over
 - Filled-board end condition
-- Reverse-direction input prevention
+- Reverse-direction input prevention via `pendingDirection`
+- Rapid multi-key sequences allowed (RIGHT→UP→LEFT, UP→RIGHT→DOWN)
 - Pause/resume toggling and game-over guard
 - `stepState` no-op when paused or game over
 - Direction input validation (invalid and duplicate inputs)
 - Food placement on valid empty cells only (including full-board edge case)
+- `positionsEqual` matching and non-matching coordinates
+- `isInsideBoard` in-bounds and out-of-bounds positions
+- `createInitialState` default grid, center snake, and initial values
+- Single-segment snake reversal allowance
 
 **Rogue AI** (`tests/rogueLogic.test.js`):
 - Rogue snake spawn, movement, growth, and respawn behavior
 - Rogue spawn returns null when all corners are occupied
 - Rogue segment collection and filtering by ID
+- Rogue segment collection with empty rogue array
 - Rogue pathfinding with null food (random fallback)
 - Rogue avoidance of other rogues' occupied cells
 - Rogue/player and rogue/rogue collision outcomes (body-hit, same-cell head-on, and head-swap)
+- Multiple rogues hitting player simultaneously
 
 ## Manual Verification Checklist
 

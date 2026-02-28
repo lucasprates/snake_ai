@@ -64,3 +64,13 @@ test("OPPOSITE_DIRECTIONS maps all four directions", () => {
   assert.equal(OPPOSITE_DIRECTIONS.LEFT, "RIGHT");
   assert.equal(OPPOSITE_DIRECTIONS.RIGHT, "LEFT");
 });
+
+test("clampRandom returns 0 for Infinity", () => {
+  assert.equal(clampRandom(Infinity), 0);
+  assert.equal(clampRandom(-Infinity), 0);
+});
+
+test("clampIntRange returns min for Infinity", () => {
+  assert.equal(clampIntRange(Infinity, 0, 5), 0);
+  assert.equal(clampIntRange(-Infinity, 0, 5), 0);
+});

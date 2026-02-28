@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 
 import {
   createInitialState,
+  DEFAULT_GRID_HEIGHT,
+  DEFAULT_GRID_WIDTH,
   END_REASONS,
+  isInsideBoard,
   placeFood,
+  positionsEqual,
   setDirection,
   stepState,
   togglePause
@@ -324,4 +328,185 @@ test("stepState is a no-op when game is over", () => {
 
   const next = stepState(gameOver);
   assert.equal(next, gameOver);
+});
+
+test("rapid RIGHT→UP→LEFT between ticks is allowed via pendingDirection check", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 5, y: 6 },
+      { x: 5, y: 7 }
+    ],
+    direction: "RIGHT",
+    food: { x: 9, y: 9 }
+  });
+
+  const afterUp = setDirection(state, "UP");
+  assert.equal(afterUp.pendingDirection, "UP");
+
+  const afterLeft = setDirection(afterUp, "LEFT");
+  assert.equal(afterLeft.pendingDirection, "LEFT");
+
+  const next = stepState(afterLeft);
+  assert.deepEqual(next.snake[0], { x: 4, y: 5 });
+  assert.equal(next.gameOver, false);
+});
+
+test("rapid UP→RIGHT→DOWN between ticks is allowed via pendingDirection check", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 6, y: 5 },
+      { x: 7, y: 5 }
+    ],
+    direction: "UP",
+    food: { x: 9, y: 9 }
+  });
+
+  const afterRight = setDirection(state, "RIGHT");
+  assert.equal(afterRight.pendingDirection, "RIGHT");
+
+  const afterDown = setDirection(afterRight, "DOWN");
+  assert.equal(afterDown.pendingDirection, "DOWN");
+
+  const next = stepState(afterDown);
+  assert.deepEqual(next.snake[0], { x: 5, y: 6 });
+  assert.equal(next.gameOver, false);
+});
+
+test("pendingDirection reverse is still rejected", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 4, y: 5 },
+      { x: 3, y: 5 }
+    ],
+    direction: "RIGHT",
+    food: { x: 9, y: 9 }
+  });
+
+  const afterUp = setDirection(state, "UP");
+  assert.equal(afterUp.pendingDirection, "UP");
+
+  const afterDown = setDirection(afterUp, "DOWN");
+  assert.equal(afterDown, afterUp);
+  assert.equal(afterDown.pendingDirection, "UP");
+});
+
+test("positionsEqual returns true for matching coordinates", () => {
+  assert.equal(positionsEqual({ x: 3, y: 7 }, { x: 3, y: 7 }), true);
+});
+
+test("positionsEqual returns false for different coordinates", () => {
+  assert.equal(positionsEqual({ x: 3, y: 7 }, { x: 3, y: 8 }), false);
+  assert.equal(positionsEqual({ x: 0, y: 0 }, { x: 1, y: 0 }), false);
+});
+
+test("isInsideBoard returns true for positions within bounds", () => {
+  assert.equal(isInsideBoard({ x: 0, y: 0 }, 10, 10), true);
+  assert.equal(isInsideBoard({ x: 9, y: 9 }, 10, 10), true);
+  assert.equal(isInsideBoard({ x: 5, y: 5 }, 10, 10), true);
+});
+
+test("isInsideBoard returns false for positions outside bounds", () => {
+  assert.equal(isInsideBoard({ x: -1, y: 0 }, 10, 10), false);
+  assert.equal(isInsideBoard({ x: 0, y: -1 }, 10, 10), false);
+  assert.equal(isInsideBoard({ x: 10, y: 0 }, 10, 10), false);
+  assert.equal(isInsideBoard({ x: 0, y: 10 }, 10, 10), false);
+});
+
+test("createInitialState uses default 20x20 grid and centers the snake", () => {
+  const state = createInitialState();
+
+  assert.equal(state.width, DEFAULT_GRID_WIDTH);
+  assert.equal(state.height, DEFAULT_GRID_HEIGHT);
+  assert.equal(state.width, 20);
+  assert.equal(state.height, 20);
+  assert.equal(state.direction, "RIGHT");
+  assert.equal(state.pendingDirection, "RIGHT");
+  assert.equal(state.score, 0);
+  assert.equal(state.paused, false);
+  assert.equal(state.gameOver, false);
+  assert.equal(state.endReason, null);
+
+  assert.equal(state.snake.length, 3);
+  assert.deepEqual(state.snake[0], { x: 10, y: 10 });
+  assert.deepEqual(state.snake[1], { x: 9, y: 10 });
+  assert.deepEqual(state.snake[2], { x: 8, y: 10 });
+});
+
+test("single-segment snake is allowed to reverse direction", () => {
+  const state = createInitialState({
+    width: 6,
+    height: 6,
+    snake: [{ x: 3, y: 3 }],
+    direction: "RIGHT",
+    food: { x: 5, y: 5 }
+  });
+
+  const reversed = setDirection(state, "LEFT");
+  assert.equal(reversed.pendingDirection, "LEFT");
+
+  const next = stepState(reversed);
+  assert.deepEqual(next.snake[0], { x: 2, y: 3 });
+});
+
+test("snake moves one cell UP per tick", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 5, y: 6 },
+      { x: 5, y: 7 }
+    ],
+    direction: "UP",
+    food: { x: 9, y: 9 }
+  });
+
+  const next = stepState(state);
+  assert.deepEqual(next.snake[0], { x: 5, y: 4 });
+  assert.equal(next.gameOver, false);
+});
+
+test("snake moves one cell DOWN per tick", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 5, y: 4 },
+      { x: 5, y: 3 }
+    ],
+    direction: "DOWN",
+    food: { x: 9, y: 9 }
+  });
+
+  const next = stepState(state);
+  assert.deepEqual(next.snake[0], { x: 5, y: 6 });
+  assert.equal(next.gameOver, false);
+});
+
+test("snake moves one cell LEFT per tick", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 6, y: 5 },
+      { x: 7, y: 5 }
+    ],
+    direction: "LEFT",
+    food: { x: 9, y: 9 }
+  });
+
+  const next = stepState(state);
+  assert.deepEqual(next.snake[0], { x: 4, y: 5 });
+  assert.equal(next.gameOver, false);
 });

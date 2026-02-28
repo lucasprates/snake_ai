@@ -136,7 +136,7 @@ export function setDirection(state, direction) {
 
   if (
     state.snake.length > 1 &&
-    OPPOSITE_DIRECTIONS[state.direction] === direction
+    OPPOSITE_DIRECTIONS[state.pendingDirection] === direction
   ) {
     return state;
   }
