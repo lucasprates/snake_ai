@@ -71,7 +71,7 @@ export function placeFood(
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const cellKey = `${x},${y}`;
+      const cellKey = toCellKey({ x, y });
       if (!occupied.has(cellKey)) {
         availableCount += 1;
       }
@@ -87,7 +87,7 @@ export function placeFood(
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const cellKey = `${x},${y}`;
+      const cellKey = toCellKey({ x, y });
       if (occupied.has(cellKey)) {
         continue;
       }
@@ -110,7 +110,7 @@ export function createInitialState(options = {}) {
   const snake = options.snake ? cloneSnake(options.snake) : createInitialSnake(width, height);
   const randomFn = options.randomFn ?? Math.random;
   const blockedPositions = options.blockedPositions ?? [];
-  const hasFoodOption = Object.prototype.hasOwnProperty.call(options, "food");
+  const hasFoodOption = "food" in options;
   const food = hasFoodOption
     ? options.food
     : placeFood(snake, width, height, randomFn, blockedPositions);
