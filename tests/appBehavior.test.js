@@ -304,6 +304,29 @@ async function loadAppModule() {
   await import(`${appUrl.href}?app_behavior_test=${Date.now()}-${Math.random()}`);
 }
 
+function createTouch(identifier, clientX, clientY) {
+  return {
+    identifier,
+    clientX,
+    clientY
+  };
+}
+
+function getPlayerHeadCell(document) {
+  const board = document.getElementById("board");
+
+  for (const cell of board.children) {
+    if (
+      cell.classList.contains("player") &&
+      cell.classList.contains("segment-head")
+    ) {
+      return cell;
+    }
+  }
+
+  return null;
+}
+
 test("run difficulty stays locked for active tick timing and HUD best label", async (t) => {
   const env = installAppEnvironment();
   t.after(() => {
@@ -459,4 +482,72 @@ test("game-over score summary does not change after modal setup edits", async (t
 
   assert.equal(modalScore.textContent, initialSummary);
   assert.equal(bestDifficulty.textContent, "Easy");
+});
+
+test("swipe applies direction on touchmove without waiting for touchend", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const board = env.document.getElementById("board");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  const touchStart = createTouch(1, 120, 120);
+  const touchMove = createTouch(1, 120, 88);
+  board.dispatch("touchstart", {
+    touches: [touchStart],
+    changedTouches: [touchStart]
+  });
+  board.dispatch("touchmove", {
+    touches: [touchMove],
+    changedTouches: [touchMove]
+  });
+
+  assert.equal(env.timers.runNext(), true);
+  const headCell = getPlayerHeadCell(env.document);
+  assert.ok(headCell);
+  assert.equal(headCell.classList.contains("dir-up"), true);
+});
+
+test("short touch movement below threshold does not change direction", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const board = env.document.getElementById("board");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  const touchStart = createTouch(1, 120, 120);
+  const touchMove = createTouch(1, 131, 126);
+  board.dispatch("touchstart", {
+    touches: [touchStart],
+    changedTouches: [touchStart]
+  });
+  board.dispatch("touchmove", {
+    touches: [touchMove],
+    changedTouches: [touchMove]
+  });
+
+  assert.equal(env.timers.runNext(), true);
+  const headCell = getPlayerHeadCell(env.document);
+  assert.ok(headCell);
+  assert.equal(headCell.classList.contains("dir-right"), true);
 });

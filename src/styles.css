@@ -197,6 +197,9 @@ body {
   border-radius: 0.6rem;
   overflow: hidden;
   background: #5f8f59;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .cell {

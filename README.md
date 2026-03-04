@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.5.3`
+Current version: `0.6.0`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -22,7 +22,8 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 - Game over on wall collision, self collision, or rogue collision
 - Win/end state when the board is fully filled
 - Restart and pause/resume controls
-- Keyboard controls (`Arrow` keys + `WASD`) and on-screen touch controls
+- Mobile-compatible responsive UI for phone and tablet browsers
+- Keyboard controls (`Arrow` keys + `WASD`), on-screen touch controls, and board swipe gestures
 - 2D sprite visuals: green player snake, red/blue AI snake themes, animated food berry, and textured grass tiles
 
 ## Architecture
@@ -45,6 +46,7 @@ src/
 
 ## Patch Notes
 
+- `v0.6.0`: added mobile swipe controls directly on the board (up/down/left/right) with low-latency direction detection on `touchmove`, unified direction handling across keyboard/buttons/swipe, and mobile-safe board touch behavior (`touch-action: none`). Updated docs for mobile compatibility and expanded app behavior coverage to 89 tests with swipe-specific assertions.
 - `v0.5.3`: fixed `setDirection` to check `pendingDirection` instead of committed `direction` for reverse-prevention, improving responsiveness for rapid multi-key inputs at high tick speeds (Hard/Story). Expanded test coverage from 68 to 87 tests with new cases for `positionsEqual`, `isInsideBoard`, `createInitialState` defaults, single-segment reversal, all four movement directions, `normalizeHighScores`/`migrateHighScores` null inputs, `clampRandom`/`clampIntRange` Infinity edge cases, empty rogue arrays, and simultaneous multi-rogue collisions.
 - `v0.5.2`: refreshed Best Scores UX with `Show/Close Best Scores` wording and a dedicated difficulty filter inside the panel that defaults to the active run/setup difficulty on open while remaining independent from game difficulty selection.
 - `v0.5.1`: optimized food spawning by using a two-pass free-cell selection and an explicit occupied-cell set (snake + blocked positions), avoiding large temporary available-cell arrays.
@@ -92,7 +94,8 @@ http://localhost:4173
 
 - Configure AI snakes: choose count (`0-5`) and difficulty (Easy/Medium/Hard/Story), then press `Start Game` / `Apply & Restart`
 - At game over, change AI count or difficulty in modal and press `Play Again` to restart with new values
-- Move: `Arrow Up/Down/Left/Right` or `W/A/S/D`
+- Move: `Arrow Up/Down/Left/Right`, `W/A/S/D`, on-screen direction buttons, or swipe directly on the board
+- Mobile compatibility: layout scales for small screens and supports direct board swipes
 - Optional mouse controls on desktop: toggle `Show On-Screen Controls`
 - View per-AI best-score table: toggle `Show Best Scores` / `Close Best Scores`, then choose panel difficulty from the dropdown
 - Pause/Resume: `Space` or `Pause` button
@@ -105,7 +108,7 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-87 tests across six test files:
+89 tests across six test files:
 
 **App behavior** (`tests/appBehavior.test.js`):
 - Run difficulty remains locked for active tick timing and HUD best label
@@ -113,6 +116,8 @@ http://localhost:4173
 - Pausing stops scheduled ticks until resumed
 - Scores panel difficulty mirrors active run on open but stays independent
 - Game-over score summary does not change when modal setup selectors are edited
+- Swipe input applies direction on `touchmove` (without waiting for `touchend`)
+- Touch movement below swipe threshold does not change direction
 
 **Shared utilities** (`tests/shared.test.js`):
 - `clampIntRange` clamping, truncation, NaN, and Infinity handling
@@ -172,6 +177,7 @@ http://localhost:4173
 - Choose different AI counts (`0-5`) and verify they apply on Start
 - Confirm keyboard controls respond as expected
 - Confirm touch/on-screen controls work on small screens
+- Confirm board swipe controls (up/down/left/right) work on mobile devices
 - Eat food and verify snake length + score increase by 1
 - Verify AI snakes chase food, can eat fruit, and respawn after dying
 - Verify player head into rogue body causes game over

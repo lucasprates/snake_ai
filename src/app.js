@@ -45,6 +45,7 @@ const DIRECTION_KEYS = {
   KeyA: "LEFT",
   KeyD: "RIGHT"
 };
+const SWIPE_MIN_DISTANCE_PX = 18;
 const ROGUE_THEME_CLASSES = ["rogue-theme-red", "rogue-theme-blue"];
 const DIFFICULTY_LABELS = {
   [DIFFICULTY_MODES.EASY]: "Easy",
@@ -122,6 +123,25 @@ function getDirectionNameFromDelta(deltaX, deltaY) {
 
 function getDirectionName(from, to) {
   return getDirectionNameFromDelta(to.x - from.x, to.y - from.y);
+}
+
+function getDirectionNameFromSwipe(deltaX, deltaY) {
+  const absX = Math.abs(deltaX);
+  const absY = Math.abs(deltaY);
+
+  if (absX < SWIPE_MIN_DISTANCE_PX && absY < SWIPE_MIN_DISTANCE_PX) {
+    return null;
+  }
+
+  if (absX > absY) {
+    return deltaX > 0 ? "RIGHT" : "LEFT";
+  }
+
+  if (absY > absX) {
+    return deltaY > 0 ? "DOWN" : "UP";
+  }
+
+  return null;
 }
 
 function toDirectionClass(direction) {
@@ -410,6 +430,10 @@ let scoresPanelVisible = false;
 let scoresViewDifficulty = DEFAULT_DIFFICULTY;
 let lastHighScoreFingerprint = "";
 let modalWasVisible = false;
+let swipeTouchId = null;
+let swipeStartX = 0;
+let swipeStartY = 0;
+let swipeConsumed = false;
 
 function setControlsVisible(visible) {
   controlsVisible = visible;
@@ -806,6 +830,7 @@ function startGame(rogueCount, difficulty) {
   state = createInitialState();
   rogues = createRogueSlots(runRogueCount);
   sessionStarted = true;
+  resetSwipeTracking();
 
   for (let index = 0; index < rogues.length; index += 1) {
     if (rogues[index].respawnTicks === 0) {
@@ -903,7 +928,7 @@ function render() {
       const storySpeed = runDifficulty === DIFFICULTY_MODES.STORY
         ? ` Speed: ${getCurrentTickMs()}ms.`
         : "";
-      statusElement.textContent = `Use arrows or WASD to move. Rogue snakes active: ${activeRogueCount}/${runRogueCount}.${storySpeed}`;
+      statusElement.textContent = `Use arrows, WASD, on-screen controls, or swipe on the board. Rogue snakes active: ${activeRogueCount}/${runRogueCount}.${storySpeed}`;
     }
   }
 
@@ -954,6 +979,103 @@ function restartGame() {
   startGame(selectedRogueCount, selectedDifficulty);
 }
 
+function applyDirectionInput(direction) {
+  if (!sessionStarted || state.gameOver || !direction) {
+    return false;
+  }
+
+  state = setDirection(state, direction);
+  return true;
+}
+
+function findTouchByIdentifier(touchList, identifier) {
+  if (!touchList || typeof touchList.length !== "number") {
+    return null;
+  }
+
+  if (identifier === null) {
+    return touchList[0] ?? null;
+  }
+
+  for (let index = 0; index < touchList.length; index += 1) {
+    const touch = touchList[index];
+    if (touch?.identifier === identifier) {
+      return touch;
+    }
+  }
+
+  return null;
+}
+
+function resetSwipeTracking() {
+  swipeTouchId = null;
+  swipeStartX = 0;
+  swipeStartY = 0;
+  swipeConsumed = false;
+}
+
+function startSwipeTracking(event) {
+  if (!sessionStarted || state.gameOver) {
+    return;
+  }
+
+  const touch =
+    findTouchByIdentifier(event.changedTouches, null) ??
+    findTouchByIdentifier(event.touches, null);
+
+  if (!touch) {
+    return;
+  }
+
+  swipeTouchId = touch.identifier ?? 0;
+  swipeStartX = touch.clientX;
+  swipeStartY = touch.clientY;
+  swipeConsumed = false;
+}
+
+function moveSwipeTracking(event) {
+  if (
+    !sessionStarted ||
+    state.gameOver ||
+    swipeTouchId === null ||
+    swipeConsumed
+  ) {
+    return;
+  }
+
+  const touch =
+    findTouchByIdentifier(event.touches, swipeTouchId) ??
+    findTouchByIdentifier(event.changedTouches, swipeTouchId);
+
+  if (!touch) {
+    return;
+  }
+
+  const direction = getDirectionNameFromSwipe(
+    touch.clientX - swipeStartX,
+    touch.clientY - swipeStartY
+  );
+
+  if (!direction) {
+    return;
+  }
+
+  event.preventDefault();
+  applyDirectionInput(direction);
+  swipeConsumed = true;
+}
+
+function endSwipeTracking(event) {
+  if (swipeTouchId === null) {
+    return;
+  }
+
+  const activeTouch = findTouchByIdentifier(event.changedTouches, swipeTouchId);
+  if (activeTouch) {
+    resetSwipeTracking();
+  }
+}
+
 window.addEventListener("keydown", (event) => {
   if (!sessionStarted) {
     if (event.code === "KeyR") {
@@ -964,9 +1086,8 @@ window.addEventListener("keydown", (event) => {
   }
 
   const mappedDirection = DIRECTION_KEYS[event.code];
-  if (mappedDirection && !state.gameOver) {
+  if (mappedDirection && applyDirectionInput(mappedDirection)) {
     event.preventDefault();
-    state = setDirection(state, mappedDirection);
     return;
   }
 
@@ -988,16 +1109,19 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
+boardElement.addEventListener("touchstart", startSwipeTracking, {
+  passive: true
+});
+boardElement.addEventListener("touchmove", moveSwipeTracking, {
+  passive: false
+});
+boardElement.addEventListener("touchend", endSwipeTracking);
+boardElement.addEventListener("touchcancel", resetSwipeTracking);
+
 for (const button of directionButtons) {
   button.addEventListener("click", () => {
-    if (!sessionStarted || state.gameOver) {
-      return;
-    }
-
     const direction = button.getAttribute("data-direction");
-    if (direction) {
-      state = setDirection(state, direction);
-    }
+    applyDirectionInput(direction);
   });
 }
 
