@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.6.0`
+Current version: `0.7.0`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -15,6 +15,9 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 - Pre-game setup to choose `0-5` AI rogue snakes and difficulty mode
 - AI snakes that chase food using Manhattan distance, eat fruit, grow, die, and respawn after random delays
 - AI snakes spawn from random corners and emerge from the wall over initial ticks
+- Active AI snakes resolve movement from the same board snapshot, keeping head-on collisions symmetric
+- Swipe input only locks once a direction change is accepted, so a bad first swipe can still be corrected mid-gesture
+- AI spawn and respawn timers now resolve on the exact tick where their delay reaches zero
 - Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
 - Game-over modal includes AI count and difficulty selectors synced with the main setup
 - Persistent best-score tracking per AI count and difficulty via localStorage (survives page reloads and server restarts)
@@ -46,6 +49,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.0`: fixed three gameplay consistency issues. Swipe gestures no longer get consumed by invalid reverse inputs, so a later valid swipe in the same gesture still works. Rogue spawn and respawn timers now trigger on the exact countdown tick instead of one tick late. Active rogues now choose moves from the same board snapshot, restoring symmetric same-cell collision outcomes when multiple rogues contest the same target. Added three regression tests and increased total coverage from 89 to 92 tests.
 - `v0.6.0`: added mobile swipe controls directly on the board (up/down/left/right) with low-latency direction detection on `touchmove`, unified direction handling across keyboard/buttons/swipe, and mobile-safe board touch behavior (`touch-action: none`). Updated docs for mobile compatibility and expanded app behavior coverage to 89 tests with swipe-specific assertions.
 - `v0.5.3`: fixed `setDirection` to check `pendingDirection` instead of committed `direction` for reverse-prevention, improving responsiveness for rapid multi-key inputs at high tick speeds (Hard/Story). Expanded test coverage from 68 to 87 tests with new cases for `positionsEqual`, `isInsideBoard`, `createInitialState` defaults, single-segment reversal, all four movement directions, `normalizeHighScores`/`migrateHighScores` null inputs, `clampRandom`/`clampIntRange` Infinity edge cases, empty rogue arrays, and simultaneous multi-rogue collisions.
 - `v0.5.2`: refreshed Best Scores UX with `Show/Close Best Scores` wording and a dedicated difficulty filter inside the panel that defaults to the active run/setup difficulty on open while remaining independent from game difficulty selection.
@@ -108,7 +112,7 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-89 tests across six test files:
+92 tests across six test files:
 
 **App behavior** (`tests/appBehavior.test.js`):
 - Run difficulty remains locked for active tick timing and HUD best label
@@ -117,7 +121,9 @@ http://localhost:4173
 - Scores panel difficulty mirrors active run on open but stays independent
 - Game-over score summary does not change when modal setup selectors are edited
 - Swipe input applies direction on `touchmove` (without waiting for `touchend`)
+- Invalid reverse swipe keeps the gesture alive for a later valid swipe
 - Touch movement below swipe threshold does not change direction
+- One-tick initial rogue delays spawn on the next tick
 
 **Shared utilities** (`tests/shared.test.js`):
 - `clampIntRange` clamping, truncation, NaN, and Infinity handling
@@ -167,6 +173,7 @@ http://localhost:4173
 - Rogue pathfinding with null food (random fallback)
 - Rogue avoidance of other rogues' occupied cells
 - Rogue/player and rogue/rogue collision outcomes (body-hit, same-cell head-on, and head-swap)
+- Simultaneous contested-food rogue head-on collision regression
 - Multiple rogues hitting player simultaneously
 
 ## Manual Verification Checklist

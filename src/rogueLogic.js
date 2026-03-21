@@ -111,6 +111,59 @@ export function getActiveRogueSegments(rogues, excludeId = null) {
   return segments;
 }
 
+function addSnakeToOccupancy(occupancyByCell, snake) {
+  for (const part of snake) {
+    const key = toCellKey(part);
+    occupancyByCell.set(key, (occupancyByCell.get(key) ?? 0) + 1);
+  }
+}
+
+function removeSnakeFromOccupancy(occupancyByCell, snake) {
+  for (const part of snake) {
+    const key = toCellKey(part);
+    const nextCount = (occupancyByCell.get(key) ?? 0) - 1;
+    if (nextCount <= 0) {
+      occupancyByCell.delete(key);
+    } else {
+      occupancyByCell.set(key, nextCount);
+    }
+  }
+}
+
+function createRogueOccupancyByCell(rogues) {
+  const occupancyByCell = new Map();
+
+  for (const rogue of rogues) {
+    if (!rogue.active) {
+      continue;
+    }
+
+    addSnakeToOccupancy(occupancyByCell, rogue.snake);
+  }
+
+  return occupancyByCell;
+}
+
+function createOtherRogueBlockedLookup(occupancyByCell, snake) {
+  const ownCells = new Set(snake.map(toCellKey));
+
+  return {
+    has(cellKey) {
+      const occupancyCount = occupancyByCell.get(cellKey) ?? 0;
+
+      if (occupancyCount === 0) {
+        return false;
+      }
+
+      if (!ownCells.has(cellKey)) {
+        return true;
+      }
+
+      return occupancyCount > 1;
+    }
+  };
+}
+
 export function getRogueCollisionResult(
   rogues,
   playerSnake = [],
@@ -250,6 +303,123 @@ export function spawnRogueSnake(
     direction: choice.direction,
     emergingTicks: EMERGING_SEGMENTS,
     respawnTicks: 0
+  };
+}
+
+export function advanceRogueLifecycle(
+  rogues,
+  {
+    food = null,
+    width,
+    height,
+    randomFn = Math.random,
+    spawnRogue = null,
+    defeatRogue = null,
+    respawnFood = null
+  } = {}
+) {
+  const nextRogues = [...rogues];
+  let nextFood = food;
+  let gameOver = false;
+  const movableIndexes = [];
+
+  for (let index = 0; index < nextRogues.length; index += 1) {
+    const rogue = nextRogues[index];
+
+    if (rogue.active) {
+      movableIndexes.push(index);
+      continue;
+    }
+
+    let nextInactiveRogue = rogue;
+
+    if (rogue.respawnTicks > 0) {
+      nextInactiveRogue = {
+        ...rogue,
+        respawnTicks: rogue.respawnTicks - 1
+      };
+      nextRogues[index] = nextInactiveRogue;
+    }
+
+    if (nextInactiveRogue.respawnTicks > 0) {
+      continue;
+    }
+
+    if (!spawnRogue) {
+      continue;
+    }
+
+    const spawnedRogue = spawnRogue({
+      index,
+      rogue: nextInactiveRogue,
+      rogues: nextRogues,
+      food: nextFood
+    });
+    nextRogues[index] = spawnedRogue;
+  }
+
+  const occupancyByCell = createRogueOccupancyByCell(nextRogues);
+  const moveOutcomes = new Map();
+
+  for (const index of movableIndexes) {
+    const rogue = nextRogues[index];
+
+    if (!rogue?.active) {
+      continue;
+    }
+
+    const blockedCells = createOtherRogueBlockedLookup(
+      occupancyByCell,
+      rogue.snake
+    );
+    const moved = moveRogueSnake(
+      rogue,
+      nextFood,
+      width,
+      height,
+      blockedCells,
+      randomFn
+    );
+    moveOutcomes.set(index, moved);
+  }
+
+  let didEatFood = false;
+
+  // Apply all active-rogue moves after evaluation so collisions stay symmetric.
+  for (const index of movableIndexes) {
+    const rogue = nextRogues[index];
+    const moved = moveOutcomes.get(index);
+
+    if (!rogue?.active) {
+      continue;
+    }
+
+    if (!moved) {
+      nextRogues[index] = defeatRogue
+        ? defeatRogue({ index, rogue })
+        : rogue;
+      continue;
+    }
+
+    nextRogues[index] = moved.rogue;
+    didEatFood = didEatFood || moved.ateFood;
+  }
+
+  if (didEatFood && respawnFood) {
+    const update = respawnFood({
+      rogues: nextRogues,
+      food: nextFood
+    });
+    if (update && "food" in update) {
+      nextFood = update.food;
+    }
+    gameOver = Boolean(update?.gameOver);
+  }
+
+  return {
+    rogues: nextRogues,
+    food: nextFood,
+    gameOver
   };
 }
 

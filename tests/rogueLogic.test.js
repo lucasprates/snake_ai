@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  advanceRogueLifecycle,
   clampRogueCount,
   createRogueSlots,
   getActiveRogueSegments,
@@ -406,6 +407,51 @@ test("both rogues die on head-swap collision", () => {
       [1, { x: 1, y: 1 }],
       [2, { x: 2, y: 1 }]
     ])
+  });
+
+  assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);
+  assert.equal(result.playerDefeated, false);
+});
+
+test("rogues targeting the same food cell should both die in a head-on collision", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      emergingTicks: 0,
+      respawnTicks: 0,
+      snake: [
+        { x: 0, y: 1 },
+        { x: -1, y: 1 },
+        { x: -2, y: 1 }
+      ]
+    },
+    {
+      id: 2,
+      active: true,
+      direction: "LEFT",
+      emergingTicks: 0,
+      respawnTicks: 0,
+      snake: [
+        { x: 2, y: 1 },
+        { x: 3, y: 1 },
+        { x: 4, y: 1 }
+      ]
+    }
+  ];
+  const previousRogueHeads = new Map(
+    rogues.map((rogue) => [rogue.id, { ...rogue.snake[0] }])
+  );
+
+  const { rogues: advancedRogues } = advanceRogueLifecycle(rogues, {
+    food: { x: 1, y: 1 },
+    width: 6,
+    height: 6,
+    randomFn: () => 0
+  });
+  const result = getRogueCollisionResult(advancedRogues, [], {
+    previousRogueHeads
   });
 
   assert.deepEqual(result.defeatedRogueIds.sort((a, b) => a - b), [1, 2]);

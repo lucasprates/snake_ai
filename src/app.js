@@ -10,12 +10,12 @@ import {
   togglePause
 } from "./gameLogic.js";
 import {
+  advanceRogueLifecycle,
   clampRogueCount,
   createRogueSlots,
   getActiveRogueSegments,
   getRogueCollisionResult,
   MAX_ROGUE_SNAKES,
-  moveRogueSnake,
   randomRespawnTicks,
   spawnRogueSnake,
   toCellKey
@@ -539,18 +539,23 @@ function markPlayerDefeatedByRogue() {
   };
 }
 
-function buildSpawnOccupiedCells(excludeRogueId = null) {
+function buildSpawnOccupiedCells(
+  playerSnake,
+  currentFood,
+  currentRogues,
+  excludeRogueId = null
+) {
   const occupiedCells = new Set();
 
-  for (const part of state.snake) {
+  for (const part of playerSnake) {
     occupiedCells.add(toCellKey(part));
   }
 
-  if (state.food) {
-    occupiedCells.add(toCellKey(state.food));
+  if (currentFood) {
+    occupiedCells.add(toCellKey(currentFood));
   }
 
-  for (const rogue of rogues) {
+  for (const rogue of currentRogues) {
     if (!rogue.active || rogue.id === excludeRogueId) {
       continue;
     }
@@ -563,33 +568,8 @@ function buildSpawnOccupiedCells(excludeRogueId = null) {
   return occupiedCells;
 }
 
-function spawnRogueAtIndex(index) {
-  const slot = rogues[index];
-  const occupiedCells = buildSpawnOccupiedCells(slot.id);
-  const spawnedRogue = spawnRogueSnake(
-    slot.id,
-    state.width,
-    state.height,
-    occupiedCells
-  );
-
-  if (spawnedRogue) {
-    rogues[index] = spawnedRogue;
-    return;
-  }
-
-  rogues[index] = {
-    ...slot,
-    active: false,
-    snake: [],
-    emergingTicks: 0,
-    respawnTicks: randomRespawnTicks()
-  };
-}
-
-function defeatRogueAtIndex(index) {
-  const rogue = rogues[index];
-  rogues[index] = {
+function createDefeatedRogueSlot(rogue) {
+  return {
     ...rogue,
     active: false,
     snake: [],
@@ -598,8 +578,29 @@ function defeatRogueAtIndex(index) {
   };
 }
 
-function respawnFoodWithRogues() {
-  const blockedPositions = getActiveRogueSegments(rogues);
+function createSpawnedRogueSlot(slot, currentRogues, currentFood) {
+  const occupiedCells = buildSpawnOccupiedCells(
+    state.snake,
+    currentFood,
+    currentRogues,
+    slot.id
+  );
+  const spawnedRogue = spawnRogueSnake(
+    slot.id,
+    state.width,
+    state.height,
+    occupiedCells
+  );
+
+  if (spawnedRogue) {
+    return spawnedRogue;
+  }
+
+  return createDefeatedRogueSlot(slot);
+}
+
+function getRespawnedFoodState(currentRogues) {
+  const blockedPositions = getActiveRogueSegments(currentRogues);
   const nextFood = placeFood(
     state.snake,
     state.width,
@@ -608,8 +609,7 @@ function respawnFoodWithRogues() {
     blockedPositions
   );
 
-  state = {
-    ...state,
+  return {
     food: nextFood,
     ...(nextFood === null && {
       gameOver: true,
@@ -618,109 +618,33 @@ function respawnFoodWithRogues() {
   };
 }
 
-function addSnakeToOccupancy(occupancyByCell, snake) {
-  for (const part of snake) {
-    const key = toCellKey(part);
-    occupancyByCell.set(key, (occupancyByCell.get(key) ?? 0) + 1);
-  }
-}
-
-function removeSnakeFromOccupancy(occupancyByCell, snake) {
-  for (const part of snake) {
-    const key = toCellKey(part);
-    const nextCount = (occupancyByCell.get(key) ?? 0) - 1;
-    if (nextCount <= 0) {
-      occupancyByCell.delete(key);
-    } else {
-      occupancyByCell.set(key, nextCount);
-    }
-  }
-}
-
-function createRogueOccupancyByCell() {
-  const occupancyByCell = new Map();
-
-  for (const rogue of rogues) {
-    if (!rogue.active) {
-      continue;
-    }
-
-    addSnakeToOccupancy(occupancyByCell, rogue.snake);
-  }
-
-  return occupancyByCell;
-}
-
-function createOtherRogueBlockedLookup(occupancyByCell, snake) {
-  const ownCells = new Set(snake.map(toCellKey));
-
-  return {
-    has(cellKey) {
-      const occupancyCount = occupancyByCell.get(cellKey) ?? 0;
-
-      if (occupancyCount === 0) {
-        return false;
-      }
-
-      if (!ownCells.has(cellKey)) {
-        return true;
-      }
-
-      return occupancyCount > 1;
-    }
-  };
-}
-
 function tickRogueLifecycle() {
-  const occupancyByCell = createRogueOccupancyByCell();
-
-  for (let index = 0; index < rogues.length; index += 1) {
-    const rogue = rogues[index];
-
-    if (!rogue.active) {
-      if (rogue.respawnTicks > 0) {
-        rogues[index] = {
-          ...rogue,
-          respawnTicks: rogue.respawnTicks - 1
-        };
-        continue;
-      }
-
-      spawnRogueAtIndex(index);
-      if (rogues[index].active) {
-        addSnakeToOccupancy(occupancyByCell, rogues[index].snake);
-      }
-      continue;
+  const result = advanceRogueLifecycle(rogues, {
+    food: state.food,
+    width: state.width,
+    height: state.height,
+    spawnRogue({ rogue, rogues: currentRogues, food }) {
+      return createSpawnedRogueSlot(rogue, currentRogues, food);
+    },
+    defeatRogue({ rogue }) {
+      return createDefeatedRogueSlot(rogue);
+    },
+    respawnFood({ rogues: currentRogues }) {
+      return getRespawnedFoodState(currentRogues);
     }
+  });
 
-    const blockedCells = createOtherRogueBlockedLookup(
-      occupancyByCell,
-      rogue.snake
-    );
-    const moved = moveRogueSnake(
-      rogue,
-      state.food,
-      state.width,
-      state.height,
-      blockedCells
-    );
+  rogues = result.rogues;
 
-    if (!moved) {
-      removeSnakeFromOccupancy(occupancyByCell, rogue.snake);
-      defeatRogueAtIndex(index);
-      continue;
-    }
-
-    removeSnakeFromOccupancy(occupancyByCell, rogue.snake);
-    addSnakeToOccupancy(occupancyByCell, moved.rogue.snake);
-    rogues[index] = moved.rogue;
-
-    if (moved.ateFood) {
-      respawnFoodWithRogues();
-      if (state.gameOver) {
-        return;
-      }
-    }
+  if (result.food !== state.food || result.gameOver) {
+    state = {
+      ...state,
+      food: result.food,
+      ...(result.gameOver && {
+        gameOver: true,
+        endReason: END_REASONS.FILLED_BOARD
+      })
+    };
   }
 }
 
@@ -745,7 +669,7 @@ function resolveRogueCollisions(previousPlayerHead, previousRogueHeads) {
     }
 
     if (defeatedSet.has(rogues[index].id)) {
-      defeatRogueAtIndex(index);
+      rogues[index] = createDefeatedRogueSlot(rogues[index]);
     }
   }
 
@@ -834,7 +758,7 @@ function startGame(rogueCount, difficulty) {
 
   for (let index = 0; index < rogues.length; index += 1) {
     if (rogues[index].respawnTicks === 0) {
-      spawnRogueAtIndex(index);
+      rogues[index] = createSpawnedRogueSlot(rogues[index], rogues, state.food);
     }
   }
 
@@ -984,8 +908,11 @@ function applyDirectionInput(direction) {
     return false;
   }
 
-  state = setDirection(state, direction);
-  return true;
+  // Report whether input was actually accepted so swipe tracking can stay open.
+  const nextState = setDirection(state, direction);
+  const didChange = nextState !== state;
+  state = nextState;
+  return didChange;
 }
 
 function findTouchByIdentifier(touchList, identifier) {
@@ -1060,9 +987,10 @@ function moveSwipeTracking(event) {
     return;
   }
 
-  event.preventDefault();
-  applyDirectionInput(direction);
-  swipeConsumed = true;
+  if (applyDirectionInput(direction)) {
+    event.preventDefault();
+    swipeConsumed = true;
+  }
 }
 
 function endSwipeTracking(event) {

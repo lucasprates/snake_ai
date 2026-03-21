@@ -518,6 +518,45 @@ test("swipe applies direction on touchmove without waiting for touchend", async 
   assert.equal(headCell.classList.contains("dir-up"), true);
 });
 
+test("invalid reverse swipe does not consume a later valid swipe in the same gesture", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const board = env.document.getElementById("board");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  const touchStart = createTouch(1, 120, 120);
+  const reverseSwipe = createTouch(1, 88, 120);
+  const validSwipe = createTouch(1, 120, 88);
+  board.dispatch("touchstart", {
+    touches: [touchStart],
+    changedTouches: [touchStart]
+  });
+  board.dispatch("touchmove", {
+    touches: [reverseSwipe],
+    changedTouches: [reverseSwipe]
+  });
+  board.dispatch("touchmove", {
+    touches: [validSwipe],
+    changedTouches: [validSwipe]
+  });
+
+  assert.equal(env.timers.runNext(), true);
+  const headCell = getPlayerHeadCell(env.document);
+  assert.ok(headCell);
+  assert.equal(headCell.classList.contains("dir-up"), true);
+});
+
 test("short touch movement below threshold does not change direction", async (t) => {
   const env = installAppEnvironment();
   t.after(() => {
@@ -550,4 +589,31 @@ test("short touch movement below threshold does not change direction", async (t)
   const headCell = getPlayerHeadCell(env.document);
   assert.ok(headCell);
   assert.equal(headCell.classList.contains("dir-right"), true);
+});
+
+test("rogue with a 1-tick initial delay spawns on the next tick", async (t) => {
+  const env = installAppEnvironment();
+  const originalRandom = Math.random;
+  t.after(() => {
+    Math.random = originalRandom;
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const sequence = [0.5, 0.06, 0];
+  Math.random = () => sequence.shift() ?? 0;
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const rogueStatus = env.document.getElementById("rogue-status");
+
+  rogueCountSelect.value = "1";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  assert.match(rogueStatus.textContent, /0\/1$/);
+  assert.equal(env.timers.runNext(), true);
+  assert.match(rogueStatus.textContent, /1\/1$/);
 });
