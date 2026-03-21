@@ -212,88 +212,69 @@ function getRogueThemeClass(rogueId) {
   return ROGUE_THEME_CLASSES[themeIndex];
 }
 
-function getSnakeRenderDescriptors(snake, fallbackDirection) {
-  if (!snake || snake.length === 0) {
-    return [];
-  }
-
-  const descriptors = [];
-
-  for (let index = 0; index < snake.length; index += 1) {
-    const part = snake[index];
-
-    if (index === 0) {
-      const neck = snake[1] ?? null;
-      const headDirection = neck
-        ? getDirectionName(neck, part)
-        : fallbackDirection;
-      descriptors.push({
-        part,
-        roleClass: "segment-head",
-        orientationClass: toDirectionClass(headDirection)
-      });
-      continue;
-    }
-
-    if (index === snake.length - 1) {
-      const previous = snake[index - 1] ?? null;
-      const tailDirection = previous
-        ? getDirectionName(previous, part)
-        : fallbackDirection;
-      descriptors.push({
-        part,
-        roleClass: "segment-tail",
-        orientationClass: toDirectionClass(tailDirection)
-      });
-      continue;
-    }
-
-    const previous = snake[index - 1];
-    const next = snake[index + 1];
-    const directionToPrevious = getDirectionName(part, previous);
-    const directionToNext = getDirectionName(part, next);
-    const turnClass = getTurnClass(directionToPrevious, directionToNext);
-
-    if (turnClass) {
-      descriptors.push({
-        part,
-        roleClass: "segment-turn",
-        orientationClass: turnClass
-      });
-      continue;
-    }
-
-    descriptors.push({
-      part,
-      roleClass: "segment-body",
-      orientationClass: getStraightDirectionClass(
-        directionToPrevious,
-        directionToNext
-      )
-    });
-  }
-
-  return descriptors;
+function appendOverlayClassName(overlayClassNamesByIndex, index, overlayClassName) {
+  const existing = overlayClassNamesByIndex[index];
+  overlayClassNamesByIndex[index] = existing
+    ? `${existing} ${overlayClassName}`
+    : overlayClassName;
 }
 
-function paintSnakeSprites(snake, fallbackDirection, ownerClasses) {
-  const descriptors = getSnakeRenderDescriptors(snake, fallbackDirection);
+function queueSnakeSprites(
+  overlayClassNamesByIndex,
+  snake,
+  fallbackDirection,
+  ownerClasses
+) {
+  if (!snake || snake.length === 0) {
+    return;
+  }
 
-  for (const descriptor of descriptors) {
-    const { part, roleClass, orientationClass } = descriptor;
+  const ownerClassName = ownerClasses.join(" ");
+
+  for (let segmentIndex = 0; segmentIndex < snake.length; segmentIndex += 1) {
+    const part = snake[segmentIndex];
 
     if (!isInsideBoard(part, state.width, state.height)) {
       continue;
     }
 
-    const index = getCellIndex(part.x, part.y, state.width);
-    const cell = boardCells[index];
-    if (!cell) {
-      continue;
+    let roleClass = "segment-body";
+    let orientationClass = "dir-right";
+
+    if (segmentIndex === 0) {
+      const neck = snake[1] ?? null;
+      const headDirection = neck
+        ? getDirectionName(neck, part)
+        : fallbackDirection;
+      roleClass = "segment-head";
+      orientationClass = toDirectionClass(headDirection);
+    } else if (segmentIndex === snake.length - 1) {
+      const previous = snake[segmentIndex - 1] ?? null;
+      const tailDirection = previous
+        ? getDirectionName(previous, part)
+        : fallbackDirection;
+      roleClass = "segment-tail";
+      orientationClass = toDirectionClass(tailDirection);
+    } else {
+      const previous = snake[segmentIndex - 1];
+      const next = snake[segmentIndex + 1];
+      const directionToPrevious = getDirectionName(part, previous);
+      const directionToNext = getDirectionName(part, next);
+      const turnClass = getTurnClass(directionToPrevious, directionToNext);
+
+      orientationClass = turnClass ?? getStraightDirectionClass(
+        directionToPrevious,
+        directionToNext
+      );
+      roleClass = turnClass ? "segment-turn" : "segment-body";
     }
 
-    cell.classList.add("segment", roleClass, orientationClass, ...ownerClasses);
-    markCellDirty(index);
+    const index = getCellIndex(part.x, part.y, state.width);
+    appendOverlayClassName(
+      overlayClassNamesByIndex,
+      index,
+      `segment ${roleClass} ${orientationClass} ${ownerClassName}`
+    );
   }
 }
 
@@ -434,6 +415,7 @@ let swipeTouchId = null;
 let swipeStartX = 0;
 let swipeStartY = 0;
 let swipeConsumed = false;
+let renderedOverlayClassByIndex = new Array(boardCells.length).fill("");
 
 function setControlsVisible(visible) {
   controlsVisible = visible;
@@ -466,20 +448,49 @@ function setScoresPanelVisible(visible) {
   scoresToggleButton.setAttribute("aria-pressed", visible ? "true" : "false");
 }
 
-const dirtyCells = new Set();
-
-function markCellDirty(index) {
-  dirtyCells.add(index);
+function setTextContentIfChanged(element, value) {
+  if (element && element.textContent !== value) {
+    element.textContent = value;
+  }
 }
 
-function resetDirtyCells() {
-  for (const index of dirtyCells) {
-    const cell = boardCells[index];
-    if (cell) {
-      cell.className = cell.dataset.baseClass ?? "cell";
-    }
+function setDisabledIfChanged(element, value) {
+  if (element && element.disabled !== value) {
+    element.disabled = value;
   }
-  dirtyCells.clear();
+}
+
+function setClassToggleIfChanged(element, className, force) {
+  if (!element) {
+    return;
+  }
+
+  const hasClass = element.classList.contains(className);
+  if (hasClass !== force) {
+    element.classList.toggle(className, force);
+  }
+}
+
+function applyBoardOverlays(nextOverlayClassNamesByIndex) {
+  for (let index = 0; index < boardCells.length; index += 1) {
+    const nextOverlayClassName = nextOverlayClassNamesByIndex[index] ?? "";
+    const previousOverlayClassName = renderedOverlayClassByIndex[index] ?? "";
+
+    if (nextOverlayClassName === previousOverlayClassName) {
+      continue;
+    }
+
+    const cell = boardCells[index];
+    if (!cell) {
+      continue;
+    }
+
+    const baseClass = cell.dataset.baseClass ?? "cell";
+    cell.className = nextOverlayClassName
+      ? `${baseClass} ${nextOverlayClassName}`
+      : baseClass;
+    renderedOverlayClassByIndex[index] = nextOverlayClassName;
+  }
 }
 
 function setSelectedRogueCount(value) {
@@ -525,10 +536,6 @@ function readConfiguredDifficulty() {
 
 function readModalConfiguredDifficulty() {
   return setSelectedDifficulty(modalDifficultySelect.value);
-}
-
-function countActiveRogues() {
-  return rogues.filter((rogue) => rogue.active).length;
 }
 
 function markPlayerDefeatedByRogue() {
@@ -771,8 +778,8 @@ function startGame(rogueCount, difficulty) {
 }
 
 function render() {
-  resetDirtyCells();
-  const activeRogueCount = countActiveRogues();
+  let activeRogueCount = 0;
+  const nextOverlayClassNamesByIndex = new Array(boardCells.length);
 
   if (sessionStarted) {
     for (const rogue of rogues) {
@@ -780,30 +787,38 @@ function render() {
         continue;
       }
 
-      paintSnakeSprites(rogue.snake, rogue.direction, [
+      activeRogueCount += 1;
+      queueSnakeSprites(nextOverlayClassNamesByIndex, rogue.snake, rogue.direction, [
         "rogue",
         getRogueThemeClass(rogue.id)
       ]);
     }
 
-    paintSnakeSprites(state.snake, state.direction, ["player"]);
+    queueSnakeSprites(nextOverlayClassNamesByIndex, state.snake, state.direction, ["player"]);
 
     if (state.food && isInsideBoard(state.food, state.width, state.height)) {
       const foodIndex = getCellIndex(state.food.x, state.food.y, state.width);
       if (boardCells[foodIndex]) {
-        boardCells[foodIndex].classList.add("food");
-        markCellDirty(foodIndex);
+        appendOverlayClassName(nextOverlayClassNamesByIndex, foodIndex, "food");
       }
     }
   }
 
+  applyBoardOverlays(nextOverlayClassNamesByIndex);
+
   if (!sessionStarted) {
-    statusElement.textContent = `Choose rogue snakes (0-${MAX_ROGUE_SNAKES}) and press Start Game.`;
-    modalElement.classList.add("hidden");
+    setTextContentIfChanged(
+      statusElement,
+      `Choose rogue snakes (0-${MAX_ROGUE_SNAKES}) and press Start Game.`
+    );
+    setClassToggleIfChanged(modalElement, "hidden", true);
     gameOverSummary = null;
   } else if (state.gameOver) {
-    statusElement.textContent = "Game over. Press Restart.";
-    modalMessageElement.textContent = getGameOverMessage(state.endReason);
+    setTextContentIfChanged(statusElement, "Game over. Press Restart.");
+    setTextContentIfChanged(
+      modalMessageElement,
+      getGameOverMessage(state.endReason)
+    );
 
     if (!didPersistGameOverScore) {
       const updatedScores = upsertBestScore(
@@ -830,29 +845,36 @@ function render() {
     }
 
     if (gameOverSummary.isNewRecord && gameOverSummary.score > 0) {
-      modalScoreElement.textContent =
+      setTextContentIfChanged(
+        modalScoreElement,
         `New Best for AI ${gameOverSummary.rogueCount} ` +
-        `(${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.score}!`;
-      modalScoreElement.classList.add("new-record");
+        `(${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.score}!`
+      );
+      setClassToggleIfChanged(modalScoreElement, "new-record", true);
     } else {
-      modalScoreElement.textContent =
+      setTextContentIfChanged(
+        modalScoreElement,
         `Score: ${gameOverSummary.score} | ` +
         `Best (AI ${gameOverSummary.rogueCount}, ` +
-        `${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.bestScore}`;
-      modalScoreElement.classList.remove("new-record");
+        `${toDifficultyLabel(gameOverSummary.difficulty)}): ${gameOverSummary.bestScore}`
+      );
+      setClassToggleIfChanged(modalScoreElement, "new-record", false);
     }
-    modalElement.classList.remove("hidden");
+    setClassToggleIfChanged(modalElement, "hidden", false);
   } else {
-    modalElement.classList.add("hidden");
+    setClassToggleIfChanged(modalElement, "hidden", true);
     gameOverSummary = null;
 
     if (state.paused) {
-      statusElement.textContent = "Paused.";
+      setTextContentIfChanged(statusElement, "Paused.");
     } else {
       const storySpeed = runDifficulty === DIFFICULTY_MODES.STORY
         ? ` Speed: ${getCurrentTickMs()}ms.`
         : "";
-      statusElement.textContent = `Use arrows, WASD, on-screen controls, or swipe on the board. Rogue snakes active: ${activeRogueCount}/${runRogueCount}.${storySpeed}`;
+      setTextContentIfChanged(
+        statusElement,
+        `Use arrows, WASD, on-screen controls, or swipe on the board. Rogue snakes active: ${activeRogueCount}/${runRogueCount}.${storySpeed}`
+      );
     }
   }
 
@@ -876,22 +898,30 @@ function render() {
     ? scoresViewDifficulty
     : displayedBestDifficulty;
 
-  renderHighScoreRows(displayedBestRogueCount, scoresPanelDifficulty);
+  if (scoresPanelVisible) {
+    renderHighScoreRows(displayedBestRogueCount, scoresPanelDifficulty);
+  }
 
-  scoreElement.textContent = sessionStarted ? String(state.score) : "0";
-  highScoreElement.textContent = String(displayedBestScore);
+  setTextContentIfChanged(scoreElement, sessionStarted ? String(state.score) : "0");
+  setTextContentIfChanged(highScoreElement, String(displayedBestScore));
   if (bestAiCountElement) {
-    bestAiCountElement.textContent = String(displayedBestRogueCount);
+    setTextContentIfChanged(bestAiCountElement, String(displayedBestRogueCount));
   }
   if (bestDifficultyElement) {
-    bestDifficultyElement.textContent = toDifficultyLabel(displayedBestDifficulty);
+    setTextContentIfChanged(
+      bestDifficultyElement,
+      toDifficultyLabel(displayedBestDifficulty)
+    );
   }
-  rogueStatusElement.textContent = `${activeRogueCount}/${runRogueCount}`;
+  setTextContentIfChanged(rogueStatusElement, `${activeRogueCount}/${runRogueCount}`);
 
-  startButton.textContent = sessionStarted ? "Apply & Restart" : "Start Game";
-  pauseButton.textContent = state.paused ? "Resume" : "Pause";
-  pauseButton.disabled = !sessionStarted || state.gameOver;
-  restartButton.disabled = !sessionStarted;
+  setTextContentIfChanged(
+    startButton,
+    sessionStarted ? "Apply & Restart" : "Start Game"
+  );
+  setTextContentIfChanged(pauseButton, state.paused ? "Resume" : "Pause");
+  setDisabledIfChanged(pauseButton, !sessionStarted || state.gameOver);
+  setDisabledIfChanged(restartButton, !sessionStarted);
 }
 
 function restartGame() {

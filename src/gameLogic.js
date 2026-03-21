@@ -1,8 +1,7 @@
 import {
   clampRandom,
   cloneSnake,
-  OPPOSITE_DIRECTIONS,
-  toCellKey
+  OPPOSITE_DIRECTIONS
 } from "./shared.js";
 
 export const DEFAULT_GRID_WIDTH = 20;
@@ -53,28 +52,30 @@ export function placeFood(
   randomFn = Math.random,
   blockedPositions = []
 ) {
-  const occupied = new Set();
+  const cellCount = width * height;
+  const occupied = new Uint8Array(cellCount);
+
+  function markOccupied(position) {
+    occupied[position.y * width + position.x] = 1;
+  }
 
   for (const part of snake) {
     if (isInsideBoard(part, width, height)) {
-      occupied.add(toCellKey(part));
+      markOccupied(part);
     }
   }
 
   for (const blocked of blockedPositions) {
     if (isInsideBoard(blocked, width, height)) {
-      occupied.add(toCellKey(blocked));
+      markOccupied(blocked);
     }
   }
 
   let availableCount = 0;
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const cellKey = toCellKey({ x, y });
-      if (!occupied.has(cellKey)) {
-        availableCount += 1;
-      }
+  for (let index = 0; index < cellCount; index += 1) {
+    if (occupied[index] === 0) {
+      availableCount += 1;
     }
   }
 
@@ -85,19 +86,19 @@ export function placeFood(
   const randomValue = clampRandom(randomFn());
   let targetIndex = Math.floor(randomValue * availableCount);
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const cellKey = toCellKey({ x, y });
-      if (occupied.has(cellKey)) {
-        continue;
-      }
-
-      if (targetIndex === 0) {
-        return { x, y };
-      }
-
-      targetIndex -= 1;
+  for (let index = 0; index < cellCount; index += 1) {
+    if (occupied[index] !== 0) {
+      continue;
     }
+
+    if (targetIndex === 0) {
+      return {
+        x: index % width,
+        y: Math.floor(index / width)
+      };
+    }
+
+    targetIndex -= 1;
   }
 
   return null;

@@ -118,18 +118,6 @@ function addSnakeToOccupancy(occupancyByCell, snake) {
   }
 }
 
-function removeSnakeFromOccupancy(occupancyByCell, snake) {
-  for (const part of snake) {
-    const key = toCellKey(part);
-    const nextCount = (occupancyByCell.get(key) ?? 0) - 1;
-    if (nextCount <= 0) {
-      occupancyByCell.delete(key);
-    } else {
-      occupancyByCell.set(key, nextCount);
-    }
-  }
-}
-
 function createRogueOccupancyByCell(rogues) {
   const occupancyByCell = new Map();
 
@@ -359,7 +347,7 @@ export function advanceRogueLifecycle(
   }
 
   const occupancyByCell = createRogueOccupancyByCell(nextRogues);
-  const moveOutcomes = new Map();
+  const moveOutcomes = new Array(nextRogues.length);
 
   for (const index of movableIndexes) {
     const rogue = nextRogues[index];
@@ -380,7 +368,7 @@ export function advanceRogueLifecycle(
       blockedCells,
       randomFn
     );
-    moveOutcomes.set(index, moved);
+    moveOutcomes[index] = moved;
   }
 
   let didEatFood = false;
@@ -388,7 +376,7 @@ export function advanceRogueLifecycle(
   // Apply all active-rogue moves after evaluation so collisions stay symmetric.
   for (const index of movableIndexes) {
     const rogue = nextRogues[index];
-    const moved = moveOutcomes.get(index);
+    const moved = moveOutcomes[index];
 
     if (!rogue?.active) {
       continue;

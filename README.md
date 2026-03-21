@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.7.0`
+Current version: `0.7.1`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -25,7 +25,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 - Game over on wall collision, self collision, or rogue collision
 - Win/end state when the board is fully filled
 - Restart and pause/resume controls
-- Mobile-compatible responsive UI for phone and tablet browsers
+- Mobile-compatible responsive UI for phone and tablet browsers, with a lighter touch-device render path
 - Keyboard controls (`Arrow` keys + `WASD`), on-screen touch controls, and board swipe gestures
 - 2D sprite visuals: green player snake, red/blue AI snake themes, animated food berry, and textured grass tiles
 
@@ -49,6 +49,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.1`: improved runtime smoothness, especially on phones. Reduced board-render DOM churn by diffing overlay classes with cheaper indexed structures, optimized food respawn placement to avoid string-heavy board scans when fruit is eaten, and added a lighter coarse-pointer/mobile paint path that trims expensive tile and sprite effects under touch interaction. This keeps gameplay noticeably smoother while preserving the current 92-test behavior.
 - `v0.7.0`: fixed three gameplay consistency issues. Swipe gestures no longer get consumed by invalid reverse inputs, so a later valid swipe in the same gesture still works. Rogue spawn and respawn timers now trigger on the exact countdown tick instead of one tick late. Active rogues now choose moves from the same board snapshot, restoring symmetric same-cell collision outcomes when multiple rogues contest the same target. Added three regression tests and increased total coverage from 89 to 92 tests.
 - `v0.6.0`: added mobile swipe controls directly on the board (up/down/left/right) with low-latency direction detection on `touchmove`, unified direction handling across keyboard/buttons/swipe, and mobile-safe board touch behavior (`touch-action: none`). Updated docs for mobile compatibility and expanded app behavior coverage to 89 tests with swipe-specific assertions.
 - `v0.5.3`: fixed `setDirection` to check `pendingDirection` instead of committed `direction` for reverse-prevention, improving responsiveness for rapid multi-key inputs at high tick speeds (Hard/Story). Expanded test coverage from 68 to 87 tests with new cases for `positionsEqual`, `isInsideBoard`, `createInitialState` defaults, single-segment reversal, all four movement directions, `normalizeHighScores`/`migrateHighScores` null inputs, `clampRandom`/`clampIntRange` Infinity edge cases, empty rogue arrays, and simultaneous multi-rogue collisions.
