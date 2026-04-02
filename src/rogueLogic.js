@@ -449,8 +449,15 @@ export function moveRogueSnake(
     }
 
     const ateFood = Boolean(food) && positionsEqual(newHead, food);
-    const bodyToCheck = ateFood ? rogue.snake : rogue.snake.slice(0, -1);
-    const hitsOwnBody = bodyToCheck.some((part) => positionsEqual(part, newHead));
+    let hitsOwnBody = false;
+    const lengthToCheck = ateFood ? rogue.snake.length : rogue.snake.length - 1;
+    for (let i = 0; i < lengthToCheck; i += 1) {
+      if (positionsEqual(rogue.snake[i], newHead)) {
+        hitsOwnBody = true;
+        break;
+      }
+    }
+
     if (hitsOwnBody) {
       continue;
     }

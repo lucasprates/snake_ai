@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.7.1`
+Current version: `0.7.2`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -49,6 +49,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.2`: tightened per-tick collision checks for both the player snake and rogue snakes by replacing temporary body-slice scans with direct indexed loops, reducing unnecessary allocations in hot movement paths. Also removed a candidate render-path change that added avoidable per-frame array writes, so this release keeps the net performance change positive while preserving the current 92-test behavior.
 - `v0.7.1`: improved runtime smoothness, especially on phones. Reduced board-render DOM churn by diffing overlay classes with cheaper indexed structures, optimized food respawn placement to avoid string-heavy board scans when fruit is eaten, and added a lighter coarse-pointer/mobile paint path that trims expensive tile and sprite effects under touch interaction. This keeps gameplay noticeably smoother while preserving the current 92-test behavior.
 - `v0.7.0`: fixed three gameplay consistency issues. Swipe gestures no longer get consumed by invalid reverse inputs, so a later valid swipe in the same gesture still works. Rogue spawn and respawn timers now trigger on the exact countdown tick instead of one tick late. Active rogues now choose moves from the same board snapshot, restoring symmetric same-cell collision outcomes when multiple rogues contest the same target. Added three regression tests and increased total coverage from 89 to 92 tests.
 - `v0.6.0`: added mobile swipe controls directly on the board (up/down/left/right) with low-latency direction detection on `touchmove`, unified direction handling across keyboard/buttons/swipe, and mobile-safe board touch behavior (`touch-action: none`). Updated docs for mobile compatibility and expanded app behavior coverage to 89 tests with swipe-specific assertions.

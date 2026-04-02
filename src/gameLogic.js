@@ -209,8 +209,14 @@ export function stepState(state, randomOrOptions = Math.random) {
   }
 
   const ateFood = state.food && positionsEqual(newHead, state.food);
-  const bodyToCheck = ateFood ? state.snake : state.snake.slice(0, -1);
-  const hitSelf = bodyToCheck.some((part) => positionsEqual(part, newHead));
+  let hitSelf = false;
+  const lengthToCheck = ateFood ? state.snake.length : state.snake.length - 1;
+  for (let i = 0; i < lengthToCheck; i += 1) {
+    if (positionsEqual(state.snake[i], newHead)) {
+      hitSelf = true;
+      break;
+    }
+  }
 
   if (hitSelf) {
     return {
