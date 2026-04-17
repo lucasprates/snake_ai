@@ -591,6 +591,38 @@ test("short touch movement below threshold does not change direction", async (t)
   assert.equal(headCell.classList.contains("dir-right"), true);
 });
 
+test("corrupt high-scores JSON falls back to legacy high-score key", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  env.localStorage.setItem("snake_highScoresByAiCount", "{not valid json");
+  env.localStorage.setItem("snake_highScore", "42");
+
+  await loadAppModule();
+
+  const highScore = env.document.getElementById("high-score");
+  assert.equal(highScore.textContent, "42");
+});
+
+test("legacy high-score key is migrated into main key and removed after load", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  env.localStorage.setItem("snake_highScore", "17");
+
+  await loadAppModule();
+
+  assert.equal(env.localStorage.getItem("snake_highScore"), null);
+  const stored = env.localStorage.getItem("snake_highScoresByAiCount");
+  assert.ok(stored, "expected main key to be persisted after migration");
+  const persisted = JSON.parse(stored);
+  assert.equal(persisted["0:MEDIUM"], 17);
+});
+
 test("rogue with a 1-tick initial delay spawns on the next tick", async (t) => {
   const env = installAppEnvironment();
   const originalRandom = Math.random;

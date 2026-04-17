@@ -304,27 +304,42 @@ function loadHighScoresByRogueCount() {
   try {
     const stored = localStorage.getItem(HIGH_SCORES_STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      const { highScores: migrated, didMigrate } = migrateHighScores(
-        parsed,
-        MAX_ROGUE_SNAKES,
-        DEFAULT_DIFFICULTY
-      );
-      const normalized = normalizeHighScores(migrated, MAX_ROGUE_SNAKES, ALL_DIFFICULTIES);
-      if (didMigrate) {
-        try {
-          localStorage.setItem(HIGH_SCORES_STORAGE_KEY, JSON.stringify(normalized));
-        } catch {
-          // localStorage unavailable
-        }
+      let parsed;
+      try {
+        parsed = JSON.parse(stored);
+      } catch {
+        // Corrupt JSON — fall through to legacy-key path rather than losing data.
+        parsed = undefined;
       }
-      return normalized;
+
+      if (parsed !== undefined) {
+        const { highScores: migrated, didMigrate } = migrateHighScores(
+          parsed,
+          MAX_ROGUE_SNAKES,
+          DEFAULT_DIFFICULTY
+        );
+        const normalized = normalizeHighScores(migrated, MAX_ROGUE_SNAKES, ALL_DIFFICULTIES);
+        if (didMigrate) {
+          try {
+            localStorage.setItem(HIGH_SCORES_STORAGE_KEY, JSON.stringify(normalized));
+          } catch {
+            // localStorage unavailable
+          }
+        }
+        return normalized;
+      }
     }
 
     const legacyStored = localStorage.getItem(LEGACY_HIGH_SCORE_STORAGE_KEY);
     const legacyScore = Number.parseInt(legacyStored, 10);
     if (Number.isFinite(legacyScore) && legacyScore > 0) {
       fallback[`0:${DEFAULT_DIFFICULTY}`] = legacyScore;
+      try {
+        localStorage.setItem(HIGH_SCORES_STORAGE_KEY, JSON.stringify(fallback));
+        localStorage.removeItem(LEGACY_HIGH_SCORE_STORAGE_KEY);
+      } catch {
+        // localStorage unavailable — keep in-memory value for this session.
+      }
     }
   } catch {
     return fallback;

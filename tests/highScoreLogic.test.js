@@ -116,3 +116,51 @@ test("migrateHighScores returns empty object for null input", () => {
   const result = migrateHighScores(null, 2, "MEDIUM");
   assert.deepEqual(result, {});
 });
+
+test("normalizeHighScores preserves scores from unknown difficulties", () => {
+  const raw = {
+    "0:MEDIUM": 5,
+    "0:NIGHTMARE": 99
+  };
+  const normalized = normalizeHighScores(raw, 1, ["EASY", "MEDIUM"]);
+
+  assert.equal(normalized["0:MEDIUM"], 5);
+  assert.equal(normalized["0:NIGHTMARE"], 99);
+});
+
+test("normalizeHighScores preserves scores for rogue counts above the current max", () => {
+  const raw = {
+    "0:MEDIUM": 5,
+    "10:MEDIUM": 42
+  };
+  const normalized = normalizeHighScores(raw, 5, ["MEDIUM"]);
+
+  assert.equal(normalized["0:MEDIUM"], 5);
+  assert.equal(normalized["10:MEDIUM"], 42);
+});
+
+test("normalizeHighScores ignores malformed keys", () => {
+  const raw = {
+    "0:MEDIUM": 5,
+    "not a valid key": 99,
+    "foo:bar": 88,
+    ":MEDIUM": 77,
+    "0:": 66
+  };
+  const normalized = normalizeHighScores(raw, 1, ["MEDIUM"]);
+
+  assert.equal(normalized["0:MEDIUM"], 5);
+  assert.equal(normalized["not a valid key"], undefined);
+  assert.equal(normalized["foo:bar"], undefined);
+  assert.equal(normalized[":MEDIUM"], undefined);
+  assert.equal(normalized["0:"], undefined);
+});
+
+test("upsertBestScore preserves unknown-difficulty keys while updating the target", () => {
+  const raw = { "0:NIGHTMARE": 99 };
+  const result = upsertBestScore(raw, 0, "MEDIUM", 10, 5, ["EASY", "MEDIUM"]);
+
+  assert.equal(result.highScores["0:MEDIUM"], 10);
+  assert.equal(result.highScores["0:NIGHTMARE"], 99);
+  assert.equal(result.isNewRecord, true);
+});

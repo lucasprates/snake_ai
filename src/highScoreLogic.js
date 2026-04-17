@@ -32,6 +32,8 @@ export function createDefaultHighScores(maxRogueCount = 5, difficulties = []) {
   return highScores;
 }
 
+const SCORE_KEY_PATTERN = /^\d+:[A-Z_]+$/;
+
 export function normalizeHighScores(rawScores, maxRogueCount = 5, difficulties = []) {
   const normalized = createDefaultHighScores(maxRogueCount, difficulties);
 
@@ -43,6 +45,18 @@ export function normalizeHighScores(rawScores, maxRogueCount = 5, difficulties =
     if (rawScores[key] !== undefined) {
       normalized[key] = sanitizeScore(rawScores[key]);
     }
+  }
+
+  // Preserve well-formed scores from unknown difficulties or rogue counts so
+  // downgrading versions or trimming difficulty sets doesn't discard records.
+  for (const key of Object.keys(rawScores)) {
+    if (normalized[key] !== undefined) {
+      continue;
+    }
+    if (!SCORE_KEY_PATTERN.test(key)) {
+      continue;
+    }
+    normalized[key] = sanitizeScore(rawScores[key]);
   }
 
   return normalized;

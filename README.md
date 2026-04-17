@@ -1,6 +1,6 @@
 # Classic Snake (snake_ai)
 
-Current version: `0.7.2`
+Current version: `0.7.3`
 
 Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -49,6 +49,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.3`: hardened best-score loading against data loss. `loadHighScoresByRogueCount` now recovers the legacy `snake_highScore` key when the main `snake_highScoresByAiCount` JSON is corrupt instead of silently resetting to zeros. After reading a legacy score, the migrated fallback is persisted into the new key and the legacy key is removed, so subsequent loads skip migration. `normalizeHighScores` now preserves well-formed scores for unknown difficulties or rogue counts, so version downgrades and difficulty-set trims don't drop records. Increased total coverage from 92 to 102 tests with regression coverage for each fix, plus new tests for `stepState` with null food and `advanceRogueLifecycle`'s `respawnFood` callback paths.
 - `v0.7.2`: tightened per-tick collision checks for both the player snake and rogue snakes by replacing temporary body-slice scans with direct indexed loops, reducing unnecessary allocations in hot movement paths. Also removed a candidate render-path change that added avoidable per-frame array writes, so this release keeps the net performance change positive while preserving the current 92-test behavior.
 - `v0.7.1`: improved runtime smoothness, especially on phones. Reduced board-render DOM churn by diffing overlay classes with cheaper indexed structures, optimized food respawn placement to avoid string-heavy board scans when fruit is eaten, and added a lighter coarse-pointer/mobile paint path that trims expensive tile and sprite effects under touch interaction. This keeps gameplay noticeably smoother while preserving the current 92-test behavior.
 - `v0.7.0`: fixed three gameplay consistency issues. Swipe gestures no longer get consumed by invalid reverse inputs, so a later valid swipe in the same gesture still works. Rogue spawn and respawn timers now trigger on the exact countdown tick instead of one tick late. Active rogues now choose moves from the same board snapshot, restoring symmetric same-cell collision outcomes when multiple rogues contest the same target. Added three regression tests and increased total coverage from 89 to 92 tests.

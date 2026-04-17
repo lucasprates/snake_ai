@@ -510,3 +510,26 @@ test("snake moves one cell LEFT per tick", () => {
   assert.deepEqual(next.snake[0], { x: 4, y: 5 });
   assert.equal(next.gameOver, false);
 });
+
+test("stepState moves snake normally when food is null", () => {
+  const state = createInitialState({
+    width: 10,
+    height: 10,
+    snake: [
+      { x: 5, y: 5 },
+      { x: 4, y: 5 },
+      { x: 3, y: 5 }
+    ],
+    direction: "RIGHT",
+    food: null
+  });
+
+  const next = stepState(state);
+
+  assert.deepEqual(next.snake[0], { x: 6, y: 5 });
+  assert.equal(next.snake.length, 3);
+  assert.equal(next.score, 0);
+  assert.equal(next.food, null);
+  assert.equal(next.gameOver, false);
+  assert.equal(next.endReason, null);
+});

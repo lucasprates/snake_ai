@@ -549,6 +549,108 @@ test("getActiveRogueSegments returns empty array for empty rogues", () => {
   assert.deepEqual(segments, []);
 });
 
+test("advanceRogueLifecycle calls respawnFood when a rogue eats food", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      emergingTicks: 0,
+      respawnTicks: 0,
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    }
+  ];
+  let callCount = 0;
+  let seenFood = null;
+  let seenRogueLength = 0;
+
+  const result = advanceRogueLifecycle(rogues, {
+    food: { x: 3, y: 2 },
+    width: 6,
+    height: 6,
+    randomFn: () => 0,
+    respawnFood({ rogues: currentRogues, food }) {
+      callCount += 1;
+      seenFood = food;
+      seenRogueLength = currentRogues[0].snake.length;
+      return { food: { x: 5, y: 5 } };
+    }
+  });
+
+  assert.equal(callCount, 1);
+  assert.deepEqual(seenFood, { x: 3, y: 2 });
+  assert.equal(seenRogueLength, 4);
+  assert.deepEqual(result.food, { x: 5, y: 5 });
+  assert.equal(result.gameOver, false);
+});
+
+test("advanceRogueLifecycle propagates gameOver from respawnFood when board has no room", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      emergingTicks: 0,
+      respawnTicks: 0,
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    }
+  ];
+
+  const result = advanceRogueLifecycle(rogues, {
+    food: { x: 3, y: 2 },
+    width: 6,
+    height: 6,
+    randomFn: () => 0,
+    respawnFood() {
+      return { food: null, gameOver: true };
+    }
+  });
+
+  assert.equal(result.food, null);
+  assert.equal(result.gameOver, true);
+});
+
+test("advanceRogueLifecycle skips respawnFood when no rogue eats", () => {
+  const rogues = [
+    {
+      id: 1,
+      active: true,
+      direction: "RIGHT",
+      emergingTicks: 0,
+      respawnTicks: 0,
+      snake: [
+        { x: 2, y: 2 },
+        { x: 1, y: 2 },
+        { x: 0, y: 2 }
+      ]
+    }
+  ];
+  let called = false;
+
+  const result = advanceRogueLifecycle(rogues, {
+    food: { x: 5, y: 2 },
+    width: 6,
+    height: 6,
+    randomFn: () => 0,
+    respawnFood() {
+      called = true;
+      return { food: null, gameOver: true };
+    }
+  });
+
+  assert.equal(called, false);
+  assert.deepEqual(result.food, { x: 5, y: 2 });
+  assert.equal(result.gameOver, false);
+});
+
 test("multiple rogues hitting player simultaneously defeats all rogues and player", () => {
   const rogues = [
     {
