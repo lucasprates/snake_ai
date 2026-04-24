@@ -209,6 +209,26 @@ class WindowMock {
 
     this.listeners.get(type).push(handler);
   }
+
+  dispatch(type, init = {}) {
+    const handlers = this.listeners.get(type) ?? [];
+    const event = {
+      type,
+      target: this,
+      currentTarget: this,
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
+      ...init
+    };
+
+    for (const handler of handlers) {
+      handler(event);
+    }
+
+    return event;
+  }
 }
 
 function createLocalStorageMock() {
@@ -287,6 +307,7 @@ function installAppEnvironment() {
 
   return {
     document,
+    window,
     localStorage,
     timers,
     restore() {
@@ -591,6 +612,51 @@ test("short touch movement below threshold does not change direction", async (t)
   assert.equal(headCell.classList.contains("dir-right"), true);
 });
 
+test("duplicate movement key prevents default while active", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  const event = env.window.dispatch("keydown", { code: "ArrowRight" });
+  assert.equal(event.defaultPrevented, true);
+});
+
+test("reverse movement key prevents default while remaining ignored", async (t) => {
+  const env = installAppEnvironment();
+  t.after(() => {
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+
+  rogueCountSelect.value = "0";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  const event = env.window.dispatch("keydown", { code: "ArrowLeft" });
+  assert.equal(event.defaultPrevented, true);
+
+  assert.equal(env.timers.runNext(), true);
+  const headCell = getPlayerHeadCell(env.document);
+  assert.ok(headCell);
+  assert.equal(headCell.classList.contains("dir-right"), true);
+});
+
 test("corrupt high-scores JSON falls back to legacy high-score key", async (t) => {
   const env = installAppEnvironment();
   t.after(() => {
@@ -605,6 +671,27 @@ test("corrupt high-scores JSON falls back to legacy high-score key", async (t) =
   const highScore = env.document.getElementById("high-score");
   assert.equal(highScore.textContent, "42");
 });
+
+for (const [payloadName, payload] of [
+  ["null", "null"],
+  ["string", JSON.stringify("not a score map")],
+  ["array", JSON.stringify([])]
+]) {
+  test(`parseable invalid ${payloadName} high-scores JSON falls back to legacy key`, async (t) => {
+    const env = installAppEnvironment();
+    t.after(() => {
+      env.restore();
+    });
+
+    env.localStorage.setItem("snake_highScoresByAiCount", payload);
+    env.localStorage.setItem("snake_highScore", "29");
+
+    await loadAppModule();
+
+    const highScore = env.document.getElementById("high-score");
+    assert.equal(highScore.textContent, "29");
+  });
+}
 
 test("legacy high-score key is migrated into main key and removed after load", async (t) => {
   const env = installAppEnvironment();

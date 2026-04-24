@@ -1,7 +1,7 @@
 {
-  "name": "classic-snake",
+  "name": "snake-ai",
   "private": true,
-  "version": "0.7.3",
+  "version": "0.7.4",
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173",

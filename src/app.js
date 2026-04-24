@@ -298,6 +298,14 @@ function getGameOverMessage(reason) {
   return "Game finished.";
 }
 
+function isStoredHighScoreMap(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
 function loadHighScoresByRogueCount() {
   const fallback = createDefaultHighScores(MAX_ROGUE_SNAKES, ALL_DIFFICULTIES);
 
@@ -312,7 +320,7 @@ function loadHighScoresByRogueCount() {
         parsed = undefined;
       }
 
-      if (parsed !== undefined) {
+      if (isStoredHighScoreMap(parsed)) {
         const { highScores: migrated, didMigrate } = migrateHighScores(
           parsed,
           MAX_ROGUE_SNAKES,
@@ -1059,8 +1067,9 @@ window.addEventListener("keydown", (event) => {
   }
 
   const mappedDirection = DIRECTION_KEYS[event.code];
-  if (mappedDirection && applyDirectionInput(mappedDirection)) {
+  if (mappedDirection && !state.gameOver) {
     event.preventDefault();
+    applyDirectionInput(mappedDirection);
     return;
   }
 

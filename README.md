@@ -1,8 +1,8 @@
-# Classic Snake (snake_ai)
+# SnakeAI (snake_ai)
 
-Current version: `0.7.3`
+Current version: `0.7.4`
 
-Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
+Minimal browser-based SnakeAI game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
 ![Gameplay screenshot](screenshot.png)
 
@@ -27,6 +27,7 @@ Minimal browser-based Snake game built with vanilla JavaScript, HTML, and CSS. F
 - Restart and pause/resume controls
 - Mobile-compatible responsive UI for phone and tablet browsers, with a lighter touch-device render path
 - Keyboard controls (`Arrow` keys + `WASD`), on-screen touch controls, and board swipe gestures
+- Active movement keys are consumed even when a direction is ignored, preventing page scroll or accidental selector changes during play
 - 2D sprite visuals: green player snake, red/blue AI snake themes, animated food berry, and textured grass tiles
 
 ## Architecture
@@ -49,6 +50,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.4`: fixed active-game movement key handling so duplicate or reverse `Arrow`/`WASD` inputs still prevent browser defaults while preserving the existing movement rules. Hardened best-score loading further by treating parseable but invalid main high-score payloads (`null`, strings, arrays) as recoverable, allowing legacy `snake_highScore` data to migrate instead of being replaced with zeros. Refreshed SnakeAI naming/version metadata and expanded coverage from 102 to 107 tests.
 - `v0.7.3`: hardened best-score loading against data loss. `loadHighScoresByRogueCount` now recovers the legacy `snake_highScore` key when the main `snake_highScoresByAiCount` JSON is corrupt instead of silently resetting to zeros. After reading a legacy score, the migrated fallback is persisted into the new key and the legacy key is removed, so subsequent loads skip migration. `normalizeHighScores` now preserves well-formed scores for unknown difficulties or rogue counts, so version downgrades and difficulty-set trims don't drop records. Increased total coverage from 92 to 102 tests with regression coverage for each fix, plus new tests for `stepState` with null food and `advanceRogueLifecycle`'s `respawnFood` callback paths.
 - `v0.7.2`: tightened per-tick collision checks for both the player snake and rogue snakes by replacing temporary body-slice scans with direct indexed loops, reducing unnecessary allocations in hot movement paths. Also removed a candidate render-path change that added avoidable per-frame array writes, so this release keeps the net performance change positive while preserving the current 92-test behavior.
 - `v0.7.1`: improved runtime smoothness, especially on phones. Reduced board-render DOM churn by diffing overlay classes with cheaper indexed structures, optimized food respawn placement to avoid string-heavy board scans when fruit is eaten, and added a lighter coarse-pointer/mobile paint path that trims expensive tile and sprite effects under touch interaction. This keeps gameplay noticeably smoother while preserving the current 92-test behavior.
@@ -115,7 +117,7 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-92 tests across six test files:
+107 tests across six test files:
 
 **App behavior** (`tests/appBehavior.test.js`):
 - Run difficulty remains locked for active tick timing and HUD best label
@@ -126,6 +128,9 @@ http://localhost:4173
 - Swipe input applies direction on `touchmove` (without waiting for `touchend`)
 - Invalid reverse swipe keeps the gesture alive for a later valid swipe
 - Touch movement below swipe threshold does not change direction
+- Duplicate and reverse movement keys prevent browser defaults while active
+- Corrupt and parseable-invalid high-score payloads fall back to the legacy high-score key
+- Legacy high-score key is migrated into the main high-score map and removed after load
 - One-tick initial rogue delays spawn on the next tick
 
 **Shared utilities** (`tests/shared.test.js`):
