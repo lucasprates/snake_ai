@@ -1,10 +1,12 @@
 {
   "name": "snake-ai",
+  "description": "Browser-based SnakeAI game with configurable AI opponents and sprite-based visuals.",
   "private": true,
-  "version": "0.7.5",
+  "version": "0.7.6",
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 4173",
+    "dev:lan": "python3 -m http.server 4173 --bind 0.0.0.0",
     "test": "node --test"
   }
 }

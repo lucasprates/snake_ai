@@ -1,6 +1,6 @@
 # SnakeAI (snake_ai)
 
-Current version: `0.7.5`
+Current version: `0.7.6`
 
 Minimal browser-based SnakeAI game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -51,9 +51,10 @@ src/
 
 ## Patch Notes
 
+- `v0.7.6`: polished project metadata and local-run docs. Added a package description, a `dev:lan` script for same-network mobile testing, README LAN instructions, a release checklist, clearer `v0.7.3` coverage notes, and fuller test-coverage bullets for the 92-to-102 test expansion. Refreshed the gameplay screenshot for the current UI version.
 - `v0.7.5`: documented the player-first tick order in the game loop: player movement and player-triggered food respawn resolve before AI snakes choose their moves in the same tick. Added an app-level regression test proving an AI snake can consume food respawned by the player earlier in that tick, raising coverage from 107 to 108 tests.
 - `v0.7.4`: fixed active-game movement key handling so duplicate or reverse `Arrow`/`WASD` inputs still prevent browser defaults while preserving the existing movement rules. Hardened best-score loading further by treating parseable but invalid main high-score payloads (`null`, strings, arrays) as recoverable, allowing legacy `snake_highScore` data to migrate instead of being replaced with zeros. Refreshed SnakeAI naming/version metadata and expanded coverage from 102 to 107 tests.
-- `v0.7.3`: hardened best-score loading against data loss. `loadHighScoresByRogueCount` now recovers the legacy `snake_highScore` key when the main `snake_highScoresByAiCount` JSON is corrupt instead of silently resetting to zeros. After reading a legacy score, the migrated fallback is persisted into the new key and the legacy key is removed, so subsequent loads skip migration. `normalizeHighScores` now preserves well-formed scores for unknown difficulties or rogue counts, so version downgrades and difficulty-set trims don't drop records. Increased total coverage from 92 to 102 tests with regression coverage for each fix, plus new tests for `stepState` with null food and `advanceRogueLifecycle`'s `respawnFood` callback paths.
+- `v0.7.3`: hardened best-score loading against data loss. `loadHighScoresByRogueCount` now recovers the legacy `snake_highScore` key when the main `snake_highScoresByAiCount` JSON is corrupt instead of silently resetting to zeros. After reading a legacy score, the migrated fallback is persisted into the new key and the legacy key is removed, so subsequent loads skip migration. `normalizeHighScores` now preserves well-formed scores for unknown difficulties or rogue counts, so version downgrades and difficulty-set trims don't drop records. Increased total coverage from 92 to 102 tests with recovery/migration regressions, future-compatible high-score preservation tests, null-food movement coverage, and `advanceRogueLifecycle` `respawnFood` callback coverage.
 - `v0.7.2`: tightened per-tick collision checks for both the player snake and rogue snakes by replacing temporary body-slice scans with direct indexed loops, reducing unnecessary allocations in hot movement paths. Also removed a candidate render-path change that added avoidable per-frame array writes, so this release keeps the net performance change positive while preserving the current 92-test behavior.
 - `v0.7.1`: improved runtime smoothness, especially on phones. Reduced board-render DOM churn by diffing overlay classes with cheaper indexed structures, optimized food respawn placement to avoid string-heavy board scans when fruit is eaten, and added a lighter coarse-pointer/mobile paint path that trims expensive tile and sprite effects under touch interaction. This keeps gameplay noticeably smoother while preserving the current 92-test behavior.
 - `v0.7.0`: fixed three gameplay consistency issues. Swipe gestures no longer get consumed by invalid reverse inputs, so a later valid swipe in the same gesture still works. Rogue spawn and respawn timers now trigger on the exact countdown tick instead of one tick late. Active rogues now choose moves from the same board snapshot, restoring symmetric same-cell collision outcomes when multiple rogues contest the same target. Added three regression tests and increased total coverage from 89 to 92 tests.
@@ -101,6 +102,15 @@ Open:
 http://localhost:4173
 ```
 
+For same-network mobile testing:
+
+```bash
+npm run dev:lan
+ipconfig getifaddr en0
+```
+
+Then open `http://YOUR_MAC_IP:4173` on a phone or tablet connected to the same Wi-Fi.
+
 ## Controls
 
 - Configure AI snakes: choose count (`0-5`) and difficulty (Easy/Medium/Hard/Story), then press `Start Game` / `Apply & Restart`
@@ -115,7 +125,16 @@ http://localhost:4173
 ## Scripts
 
 - `npm run dev`: starts a static server on port `4173`
+- `npm run dev:lan`: starts the same static server on `0.0.0.0:4173` for same-network device testing
 - `npm test`: runs tests in `tests/appBehavior.test.js`, `tests/gameLogic.test.js`, `tests/rogueLogic.test.js`, `tests/shared.test.js`, `tests/highScoreLogic.test.js`, and `tests/difficultyConfig.test.js`
+
+## Release Checklist
+
+- Update `package.json` version
+- Update the visible version in `index.html`
+- Update the README current version, patch notes, and test count
+- Refresh `screenshot.png` when the visible UI changes
+- Run `npm test`
 
 ## Test Coverage (Core Logic)
 
@@ -153,8 +172,11 @@ http://localhost:4173
 **Score logic** (`tests/highScoreLogic.test.js`):
 - Per-difficulty score map creation and normalization
 - Normalization with null and non-object inputs
+- Preservation of well-formed scores from unknown difficulties or rogue counts
+- Filtering of malformed score keys while keeping future-compatible records
 - Difficulty+AI-count-specific best retrieval
 - Record update behavior (new record vs no change)
+- Record updates preserve future-compatible score keys
 - Ordered row projection for the “Best Scores by AI” panel
 - Legacy key migration (`”0”` → `”0:MEDIUM”`) and skip for already-migrated scores
 - Migration with null input
@@ -169,6 +191,7 @@ http://localhost:4173
 - Rapid multi-key sequences allowed (RIGHT→UP→LEFT, UP→RIGHT→DOWN)
 - Pause/resume toggling and game-over guard
 - `stepState` no-op when paused or game over
+- `stepState` movement when food is currently null
 - Direction input validation (invalid and duplicate inputs)
 - Food placement on valid empty cells only (including full-board edge case)
 - `positionsEqual` matching and non-matching coordinates
@@ -185,6 +208,7 @@ http://localhost:4173
 - Rogue avoidance of other rogues' occupied cells
 - Rogue/player and rogue/rogue collision outcomes (body-hit, same-cell head-on, and head-swap)
 - Simultaneous contested-food rogue head-on collision regression
+- Rogue lifecycle `respawnFood` callback paths when food is eaten, when no food is eaten, and when no room remains
 - Multiple rogues hitting player simultaneously
 
 ## Manual Verification Checklist
