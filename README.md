@@ -1,6 +1,6 @@
 # SnakeAI (snake_ai)
 
-Current version: `0.7.4`
+Current version: `0.7.5`
 
 Minimal browser-based SnakeAI game built with vanilla JavaScript, HTML, and CSS. Features configurable AI opponents, sprite-based 2D visuals, and symmetric collision rules.
 
@@ -16,6 +16,7 @@ Minimal browser-based SnakeAI game built with vanilla JavaScript, HTML, and CSS.
 - AI snakes that chase food using Manhattan distance, eat fruit, grow, die, and respawn after random delays
 - AI snakes spawn from random corners and emerge from the wall over initial ticks
 - Active AI snakes resolve movement from the same board snapshot, keeping head-on collisions symmetric
+- Player movement and player-triggered food respawn resolve before AI movement within each tick
 - Swipe input only locks once a direction change is accepted, so a bad first swipe can still be corrected mid-gesture
 - AI spawn and respawn timers now resolve on the exact tick where their delay reaches zero
 - Symmetric collision rules for player/AI and AI/AI (same-cell head and head-swap collisions)
@@ -50,6 +51,7 @@ src/
 
 ## Patch Notes
 
+- `v0.7.5`: documented the player-first tick order in the game loop: player movement and player-triggered food respawn resolve before AI snakes choose their moves in the same tick. Added an app-level regression test proving an AI snake can consume food respawned by the player earlier in that tick, raising coverage from 107 to 108 tests.
 - `v0.7.4`: fixed active-game movement key handling so duplicate or reverse `Arrow`/`WASD` inputs still prevent browser defaults while preserving the existing movement rules. Hardened best-score loading further by treating parseable but invalid main high-score payloads (`null`, strings, arrays) as recoverable, allowing legacy `snake_highScore` data to migrate instead of being replaced with zeros. Refreshed SnakeAI naming/version metadata and expanded coverage from 102 to 107 tests.
 - `v0.7.3`: hardened best-score loading against data loss. `loadHighScoresByRogueCount` now recovers the legacy `snake_highScore` key when the main `snake_highScoresByAiCount` JSON is corrupt instead of silently resetting to zeros. After reading a legacy score, the migrated fallback is persisted into the new key and the legacy key is removed, so subsequent loads skip migration. `normalizeHighScores` now preserves well-formed scores for unknown difficulties or rogue counts, so version downgrades and difficulty-set trims don't drop records. Increased total coverage from 92 to 102 tests with regression coverage for each fix, plus new tests for `stepState` with null food and `advanceRogueLifecycle`'s `respawnFood` callback paths.
 - `v0.7.2`: tightened per-tick collision checks for both the player snake and rogue snakes by replacing temporary body-slice scans with direct indexed loops, reducing unnecessary allocations in hot movement paths. Also removed a candidate render-path change that added avoidable per-frame array writes, so this release keeps the net performance change positive while preserving the current 92-test behavior.
@@ -117,7 +119,7 @@ http://localhost:4173
 
 ## Test Coverage (Core Logic)
 
-107 tests across six test files:
+108 tests across six test files:
 
 **App behavior** (`tests/appBehavior.test.js`):
 - Run difficulty remains locked for active tick timing and HUD best label
@@ -129,6 +131,7 @@ http://localhost:4173
 - Invalid reverse swipe keeps the gesture alive for a later valid swipe
 - Touch movement below swipe threshold does not change direction
 - Duplicate and reverse movement keys prevent browser defaults while active
+- Player-triggered food respawn resolves before rogue movement in the same tick
 - Corrupt and parseable-invalid high-score payloads fall back to the legacy high-score key
 - Legacy high-score key is migrated into the main high-score map and removed after load
 - One-tick initial rogue delays spawn on the next tick

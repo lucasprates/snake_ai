@@ -736,6 +736,8 @@ function gameTick() {
     previousRogueHeads.set(rogue.id, { ...rogue.snake[0] });
   }
 
+  // Tick order is player-first: player movement and any player-triggered food
+  // respawn resolve before rogues choose their moves for the same tick.
   const blockedPositions = getActiveRogueSegments(rogues);
   const nextState = stepState(state, {
     randomFn: Math.random,

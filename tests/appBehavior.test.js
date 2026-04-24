@@ -348,6 +348,31 @@ function getPlayerHeadCell(document) {
   return null;
 }
 
+function getBoardCell(document, x, y, width = 20) {
+  const board = document.getElementById("board");
+  return board.children[y * width + x] ?? null;
+}
+
+function randomForAvailableCell(target, occupiedCells, width = 20, height = 20) {
+  const occupied = new Set(occupiedCells.map((cell) => `${cell.x},${cell.y}`));
+  const availableCells = [];
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!occupied.has(`${x},${y}`)) {
+        availableCells.push({ x, y });
+      }
+    }
+  }
+
+  const targetIndex = availableCells.findIndex(
+    (cell) => cell.x === target.x && cell.y === target.y
+  );
+
+  assert.notEqual(targetIndex, -1, "target cell must be available");
+  return (targetIndex + 0.25) / availableCells.length;
+}
+
 test("run difficulty stays locked for active tick timing and HUD best label", async (t) => {
   const env = installAppEnvironment();
   t.after(() => {
@@ -610,6 +635,64 @@ test("short touch movement below threshold does not change direction", async (t)
   const headCell = getPlayerHeadCell(env.document);
   assert.ok(headCell);
   assert.equal(headCell.classList.contains("dir-right"), true);
+});
+
+test("player food respawn resolves before rogues move in the same tick", async (t) => {
+  const env = installAppEnvironment();
+  const originalRandom = Math.random;
+  t.after(() => {
+    Math.random = originalRandom;
+    env.restore();
+  });
+
+  await loadAppModule();
+
+  const initialSnake = [
+    { x: 10, y: 10 },
+    { x: 9, y: 10 },
+    { x: 8, y: 10 }
+  ];
+  const playerSnakeAfterEating = [
+    { x: 11, y: 10 },
+    ...initialSnake
+  ];
+  const sequence = [
+    // Initial food appears directly in front of the player.
+    randomForAvailableCell({ x: 11, y: 10 }, initialSnake),
+    // The rogue starts immediately and spawns from the top-left corner.
+    0,
+    0,
+    // After the player eats, food respawns at the rogue's next cell.
+    randomForAvailableCell(
+      { x: 1, y: 0 },
+      [
+        ...playerSnakeAfterEating,
+        { x: 0, y: 0 }
+      ]
+    ),
+    // Emerging rogue has one move option, then food respawns elsewhere.
+    0,
+    0.5
+  ];
+  Math.random = () => sequence.shift() ?? 0.5;
+
+  const startButton = env.document.getElementById("start-btn");
+  const difficultySelect = env.document.getElementById("difficulty");
+  const rogueCountSelect = env.document.getElementById("rogue-count");
+  const score = env.document.getElementById("score");
+
+  rogueCountSelect.value = "1";
+  difficultySelect.value = "MEDIUM";
+  startButton.dispatch("click");
+
+  assert.equal(env.timers.runNext(), true);
+
+  const rogueNextCell = getBoardCell(env.document, 1, 0);
+  assert.ok(rogueNextCell);
+  assert.equal(score.textContent, "1");
+  assert.equal(rogueNextCell.classList.contains("rogue"), true);
+  assert.equal(rogueNextCell.classList.contains("segment-head"), true);
+  assert.equal(rogueNextCell.classList.contains("food"), false);
 });
 
 test("duplicate movement key prevents default while active", async (t) => {
